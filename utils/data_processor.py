@@ -120,39 +120,46 @@ class DataProcessor:
             if len(project_data) < 3:  # Precisa de pelo menos 3 pontos para detectar picos
                 continue
             
-            # Agrupar por hora para suavizar os dados
-            hourly_data = project_data.groupby(
-                project_data['Data Movimento'].dt.floor('H')
+            # Separar entrada e saída e agrupar por hora
+            entrada_data = project_data[project_data['Tipo_Movimento'] == 'Entrada'].groupby(
+                project_data[project_data['Tipo_Movimento'] == 'Entrada']['Data Movimento'].dt.floor('H')
             )['Quantidade'].sum().reset_index()
             
-            if len(hourly_data) < 3:
-                continue
+            saida_data = project_data[project_data['Tipo_Movimento'] == 'Saída'].groupby(
+                project_data[project_data['Tipo_Movimento'] == 'Saída']['Data Movimento'].dt.floor('H')
+            )['Quantidade'].sum().reset_index()
             
-            # Detectar picos usando scipy
-            quantities = hourly_data['Quantidade'].values
+            # Detectar picos para entrada
+            if len(entrada_data) >= 3:
+                entrada_quantities = entrada_data['Quantidade'].values
+                peaks_entrada, _ = find_peaks(
+                    entrada_quantities, 
+                    height=np.percentile(entrada_quantities, 75) if len(entrada_quantities) > 0 else 0,
+                    distance=2
+                )
+            else:
+                peaks_entrada = np.array([])
             
-            # Picos positivos (máximos locais)
-            peaks_pos, properties_pos = find_peaks(
-                quantities, 
-                height=np.percentile(quantities, 75),  # Apenas picos acima do 75º percentil
-                distance=2  # Distância mínima entre picos
-            )
-            
-            # Picos negativos (mínimos locais) - invertemos os valores
-            peaks_neg, properties_neg = find_peaks(
-                -quantities,
-                height=-np.percentile(quantities, 25),  # Apenas vales abaixo do 25º percentil
-                distance=2
-            )
+            # Detectar picos para saída (trabalhar com valores absolutos)
+            if len(saida_data) >= 3:
+                saida_quantities = abs(saida_data['Quantidade'].values)
+                peaks_saida, _ = find_peaks(
+                    saida_quantities,
+                    height=np.percentile(saida_quantities, 75) if len(saida_quantities) > 0 else 0,
+                    distance=2
+                )
+            else:
+                peaks_saida = np.array([])
             
             peaks_data[project] = {
-                'data': hourly_data,
-                'peaks_high': peaks_pos,
-                'peaks_low': peaks_neg,
-                'values_high': quantities[peaks_pos] if len(peaks_pos) > 0 else np.array([]),
-                'values_low': quantities[peaks_neg] if len(peaks_neg) > 0 else np.array([]),
-                'dates_high': hourly_data.iloc[peaks_pos]['Data Movimento'].values if len(peaks_pos) > 0 else np.array([]),
-                'dates_low': hourly_data.iloc[peaks_neg]['Data Movimento'].values if len(peaks_neg) > 0 else np.array([])
+                'entrada_data': entrada_data,
+                'saida_data': saida_data,
+                'peaks_entrada': peaks_entrada,
+                'peaks_saida': peaks_saida,
+                'values_entrada': entrada_data.iloc[peaks_entrada]['Quantidade'].values if len(peaks_entrada) > 0 and len(entrada_data) > 0 else np.array([]),
+                'values_saida': saida_data.iloc[peaks_saida]['Quantidade'].values if len(peaks_saida) > 0 and len(saida_data) > 0 else np.array([]),
+                'dates_entrada': entrada_data.iloc[peaks_entrada]['Data Movimento'].values if len(peaks_entrada) > 0 and len(entrada_data) > 0 else np.array([]),
+                'dates_saida': saida_data.iloc[peaks_saida]['Data Movimento'].values if len(peaks_saida) > 0 and len(saida_data) > 0 else np.array([])
             }
         
         return peaks_data
@@ -162,22 +169,22 @@ class DataProcessor:
         peaks_list = []
         
         for project, data in peaks_data.items():
-            # Picos altos
-            for i, (date, value) in enumerate(zip(data['dates_high'], data['values_high'])):
+            # Picos de entrada
+            for i, (date, value) in enumerate(zip(data['dates_entrada'], data['values_entrada'])):
                 peaks_list.append({
                     'Linha ATO': project,
-                    'Tipo': 'Pico Alto',
+                    'Tipo': 'Pico Entrada',
                     'Data/Hora': pd.to_datetime(date),
                     'Valor Pico': value
                 })
             
-            # Picos baixos
-            for i, (date, value) in enumerate(zip(data['dates_low'], data['values_low'])):
+            # Picos de saída
+            for i, (date, value) in enumerate(zip(data['dates_saida'], data['values_saida'])):
                 peaks_list.append({
                     'Linha ATO': project,
-                    'Tipo': 'Pico Baixo',
+                    'Tipo': 'Pico Saída',
                     'Data/Hora': pd.to_datetime(date),
-                    'Valor Pico': value
+                    'Valor Pico': abs(value)  # Mostrar como valor positivo na tabela
                 })
         
         if peaks_list:
@@ -198,30 +205,35 @@ class DataProcessor:
         
         return hourly_analysis
     
-    def analyze_daily_patterns_by_day_number(self, df):
-        """Analisa padrões por dia do mês (1-31)"""
-        daily_analysis = df.groupby(['Linha ATO', 'Dia']).agg({
+    def analyze_hourly_patterns_with_type(self, df):
+        """Analisa padrões por hora do dia com tipo de movimento"""
+        hourly_analysis = df.groupby(['Linha ATO', 'Hora', 'Tipo_Movimento']).agg({
             'Quantidade': ['sum', 'mean', 'count']
         }).reset_index()
         
         # Flatten column names
-        daily_analysis.columns = ['Linha ATO', 'Dia', 'Total', 'Media', 'Contagem']
+        hourly_analysis.columns = ['Linha ATO', 'Hora', 'Tipo_Movimento', 'Total', 'Media', 'Contagem']
+        
+        # Tornar valores de saída positivos para visualização
+        hourly_analysis.loc[hourly_analysis['Tipo_Movimento'] == 'Saída', 'Total'] = \
+            abs(hourly_analysis.loc[hourly_analysis['Tipo_Movimento'] == 'Saída', 'Total'])
+        
+        return hourly_analysis
+    
+    def analyze_daily_patterns_by_day_number_with_type(self, df):
+        """Analisa padrões por dia do mês com tipo de movimento"""
+        daily_analysis = df.groupby(['Linha ATO', 'Dia', 'Tipo_Movimento']).agg({
+            'Quantidade': ['sum', 'mean', 'count']
+        }).reset_index()
+        
+        # Flatten column names
+        daily_analysis.columns = ['Linha ATO', 'Dia', 'Tipo_Movimento', 'Total', 'Media', 'Contagem']
+        
+        # Tornar valores de saída positivos para visualização
+        daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'] = \
+            abs(daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'])
         
         return daily_analysis
-    
-    def analyze_day_hour_patterns(self, df):
-        """Analisa padrões combinando dia do mês e hora"""
-        day_hour_analysis = df.groupby(['Linha ATO', 'Dia', 'Hora']).agg({
-            'Quantidade': ['sum', 'mean', 'count']
-        }).reset_index()
-        
-        # Flatten column names
-        day_hour_analysis.columns = ['Linha ATO', 'Dia', 'Hora', 'Total', 'Media', 'Contagem']
-        
-        # Criar coluna combinada para visualização
-        day_hour_analysis['Dia_Hora'] = day_hour_analysis['Dia'].astype(str) + 'h' + day_hour_analysis['Hora'].astype(str).str.zfill(2)
-        
-        return day_hour_analysis
     
     def analyze_daily_patterns(self, df):
         """Analisa padrões por dia da semana"""

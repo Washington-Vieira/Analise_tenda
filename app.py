@@ -25,46 +25,77 @@ def main():
     with st.sidebar:
         st.header("🔧 Configurações")
         
-        # Upload do arquivo
-        uploaded_file = st.file_uploader(
-            "Selecione o arquivo Excel",
+        # Upload dos arquivos
+        st.subheader("📥 Importe os Arquivos")
+        
+        st.markdown("**1. Importe a Entrada:**")
+        entrada_file = st.file_uploader(
+            "Arquivo de Entradas",
             type=['xlsx', 'xls'],
-            help="Faça upload do arquivo Excel com os dados de movimento"
+            help="Arquivo Excel com dados de entrada (valores positivos)",
+            key="entrada"
         )
         
-        if uploaded_file is not None:
-            st.success("✅ Arquivo carregado com sucesso!")
-            
-            # Mostrar informações do arquivo
-            st.info(f"📁 **Nome:** {uploaded_file.name}")
-            st.info(f"📏 **Tamanho:** {uploaded_file.size:,} bytes")
+        st.markdown("**2. Importe a Saída:**")
+        saida_file = st.file_uploader(
+            "Arquivo de Saídas", 
+            type=['xlsx', 'xls'],
+            help="Arquivo Excel with dados de saída (valores negativos ou positivos)",
+            key="saida"
+        )
+        
+        # Mostrar status dos arquivos
+        if entrada_file is not None:
+            st.success("✅ Arquivo de entrada carregado!")
+            st.info(f"📁 **Entrada:** {entrada_file.name}")
+        
+        if saida_file is not None:
+            st.success("✅ Arquivo de saída carregado!")
+            st.info(f"📁 **Saída:** {saida_file.name}")
     
     # Área principal
-    if uploaded_file is not None:
+    if entrada_file is not None and saida_file is not None:
         try:
             # Processar dados
-            with st.spinner("🔄 Processando dados..."):
+            with st.spinner("🔄 Processando dados de entrada e saída..."):
                 processor = DataProcessor()
-                df = processor.load_excel_file(uploaded_file)
                 
-                if df is not None:
-                    # Validar colunas obrigatórias
+                # Carregar arquivo de entrada
+                df_entrada = processor.load_excel_file(entrada_file)
+                # Carregar arquivo de saída
+                df_saida = processor.load_excel_file(saida_file)
+                
+                if df_entrada is not None and df_saida is not None:
+                    # Validar colunas obrigatórias para ambos os arquivos
                     required_columns = [
                         'Linha MAE', 'Linha ATO', 'Semiacabado', 'Quantidade',
                         'Data Movimento', 'Código Movimento', 'Movimento', 'Área'
                     ]
                     
-                    missing_columns = processor.validate_columns(df, required_columns)
+                    missing_entrada = processor.validate_columns(df_entrada, required_columns)
+                    missing_saida = processor.validate_columns(df_saida, required_columns)
                     
-                    if missing_columns:
-                        st.error(f"❌ Colunas obrigatórias não encontradas: {', '.join(missing_columns)}")
-                        st.info("🔍 **Colunas encontradas no arquivo:**")
-                        for col in df.columns:
-                            st.write(f"• {col}")
+                    if missing_entrada or missing_saida:
+                        if missing_entrada:
+                            st.error(f"❌ Colunas obrigatórias não encontradas no arquivo de ENTRADA: {', '.join(missing_entrada)}")
+                        if missing_saida:
+                            st.error(f"❌ Colunas obrigatórias não encontradas no arquivo de SAÍDA: {', '.join(missing_saida)}")
                         return
                     
                     # Processar dados temporais
-                    df_processed = processor.process_temporal_data(df)
+                    df_entrada_processed = processor.process_temporal_data(df_entrada)
+                    df_saida_processed = processor.process_temporal_data(df_saida)
+                    
+                    # Garantir que quantidade de saída seja negativa
+                    df_saida_processed['Quantidade'] = -abs(df_saida_processed['Quantidade'])
+                    
+                    # Marcar tipo de movimento
+                    df_entrada_processed['Tipo_Movimento'] = 'Entrada'
+                    df_saida_processed['Tipo_Movimento'] = 'Saída'
+                    
+                    # Combinar os dados
+                    df_combined = pd.concat([df_entrada_processed, df_saida_processed], ignore_index=True)
+                    df_processed = df_combined.sort_values('Data Movimento')
                     
                     if df_processed is not None and len(df_processed) > 0:
                         # Criar visualizador
@@ -73,7 +104,7 @@ def main():
                         # Estatísticas gerais
                         st.header("📈 Resumo Geral")
                         
-                        col1, col2, col3, col4 = st.columns(4)
+                        col1, col2, col3, col4, col5 = st.columns(5)
                         
                         with col1:
                             total_records = len(df_processed)
@@ -88,8 +119,12 @@ def main():
                             st.metric("Período (dias)", date_range)
                         
                         with col4:
-                            total_quantity = df_processed['Quantidade'].sum()
-                            st.metric("Quantidade Total", f"{total_quantity:,.0f}")
+                            total_entrada = df_processed[df_processed['Tipo_Movimento'] == 'Entrada']['Quantidade'].sum()
+                            st.metric("Total Entradas", f"{total_entrada:,.0f}")
+                        
+                        with col5:
+                            total_saida = abs(df_processed[df_processed['Tipo_Movimento'] == 'Saída']['Quantidade'].sum())
+                            st.metric("Total Saídas", f"{total_saida:,.0f}")
                         
                         # Filtros
                         st.header("🔍 Filtros")
@@ -136,6 +171,11 @@ def main():
                                 fig_timeline = visualizer.create_timeline_chart(df_filtered)
                                 st.plotly_chart(fig_timeline, use_container_width=True)
                                 
+                                # Gráfico de comparação entrada vs saída
+                                st.subheader("🔄 Comparação Entrada vs Saída")
+                                fig_comparison = visualizer.create_entrada_saida_comparison_chart(df_filtered)
+                                st.plotly_chart(fig_comparison, use_container_width=True)
+                                
                                 # Análise de picos
                                 st.header("⚡ Análise de Picos de Entrada/Saída")
                                 
@@ -165,32 +205,19 @@ def main():
                                         }
                                     )
                                 
-                                # Análise por hora do dia
+                                # Análise por hora com entrada/saída
                                 st.header("🕐 Análise por Hora do Dia")
                                 
-                                hourly_data = processor.analyze_hourly_patterns(df_filtered)
-                                fig_hourly = visualizer.create_hourly_analysis_chart(hourly_data)
+                                hourly_data = processor.analyze_hourly_patterns_with_type(df_filtered)
+                                fig_hourly = visualizer.create_hourly_entrada_saida_chart(hourly_data)
                                 st.plotly_chart(fig_hourly, use_container_width=True)
                                 
-                                # Análise por dia da semana
-                                st.header("📅 Análise por Dia da Semana")
-                                
-                                daily_data = processor.analyze_daily_patterns(df_filtered)
-                                fig_daily = visualizer.create_daily_analysis_chart(daily_data)
-                                st.plotly_chart(fig_daily, use_container_width=True)
-                                
-                                # Nova análise por dia do mês
+                                # Análise por dia do mês com entrada/saída
                                 st.header("📅 Análise por Dia do Mês")
                                 
-                                daily_number_data = processor.analyze_daily_patterns_by_day_number(df_filtered)
-                                fig_daily_number = visualizer.create_daily_number_analysis_chart(daily_number_data)
+                                daily_number_data = processor.analyze_daily_patterns_by_day_number_with_type(df_filtered)
+                                fig_daily_number = visualizer.create_daily_number_entrada_saida_chart(daily_number_data)
                                 st.plotly_chart(fig_daily_number, use_container_width=True)
-                                
-                                # Mapa de calor combinado (Dia x Hora)
-                                st.header("🔥 Mapa de Calor: Dia vs Hora")
-                                
-                                fig_heatmap = visualizer.create_day_hour_heatmap(df_filtered)
-                                st.plotly_chart(fig_heatmap, use_container_width=True)
                                 
                                 # Tabela resumo por projeto
                                 st.header("📊 Resumo por Linha de Projeto")
@@ -223,8 +250,10 @@ def main():
                                     with pd.ExcelWriter(output, engine='openpyxl') as writer:
                                         df_filtered.to_excel(writer, sheet_name='Dados Filtrados', index=False)
                                         summary_df.to_excel(writer, sheet_name='Resumo por Projeto', index=False)
-                                        if peaks_data:
-                                            peaks_df.to_excel(writer, sheet_name='Picos Detectados', index=False)
+                                        if peaks_data and len(peaks_data) > 0:
+                                            peaks_df = processor.create_peaks_summary(peaks_data)
+                                            if not peaks_df.empty:
+                                                peaks_df.to_excel(writer, sheet_name='Picos Detectados', index=False)
                                     
                                     st.download_button(
                                         label="💾 Download Excel",
@@ -243,15 +272,22 @@ def main():
                         st.error("❌ Erro ao processar os dados temporais. Verifique o formato da coluna 'Data Movimento'.")
                 
                 else:
-                    st.error("❌ Erro ao carregar o arquivo Excel.")
+                    st.error("❌ Erro ao carregar os arquivos Excel.")
         
         except Exception as e:
             st.error(f"❌ Erro ao processar o arquivo: {str(e)}")
             st.info("💡 Verifique se o arquivo está no formato correto e contém todas as colunas obrigatórias.")
     
+    elif entrada_file is not None or saida_file is not None:
+        # Instruções quando apenas um arquivo foi carregado
+        if entrada_file is None:
+            st.warning("⚠️ Faça upload do arquivo de **ENTRADA** para completar a análise")
+        if saida_file is None:
+            st.warning("⚠️ Faça upload do arquivo de **SAÍDA** para completar a análise")
+    
     else:
         # Instruções quando nenhum arquivo foi carregado
-        st.info("👈 Faça upload de um arquivo Excel para começar a análise")
+        st.info("👈 Faça upload dos dois arquivos Excel (entrada e saída) para começar a análise")
         
         with st.expander("📋 Colunas Obrigatórias"):
             st.markdown("""

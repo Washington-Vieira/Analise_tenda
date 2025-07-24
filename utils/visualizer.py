@@ -10,23 +10,27 @@ class Visualizer:
         self.colors = px.colors.qualitative.Set3
     
     def create_timeline_chart(self, df):
-        """Cria gráfico de linha temporal por projeto"""
-        # Agrupar dados por hora e projeto
+        """Cria gráfico de linha temporal por projeto com entrada/saída"""
+        # Agrupar dados por hora, projeto e tipo de movimento
         hourly_data = df.groupby([
             df['Data Movimento'].dt.floor('H'), 
-            'Linha ATO'
+            'Linha ATO',
+            'Tipo_Movimento'
         ])['Quantidade'].sum().reset_index()
         
+        # Criar gráfico com cores diferentes para entrada e saída
         fig = px.line(
             hourly_data,
             x='Data Movimento',
             y='Quantidade',
             color='Linha ATO',
-            title='📈 Evolução Temporal da Quantidade por Linha de Projeto',
+            line_dash='Tipo_Movimento',
+            title='📈 Evolução Temporal: Entrada vs Saída por Linha de Projeto',
             labels={
                 'Data Movimento': 'Data e Hora',
-                'Quantidade': 'Quantidade',
-                'Linha ATO': 'Linha de Projeto'
+                'Quantidade': 'Quantidade (+ Entrada, - Saída)',
+                'Linha ATO': 'Linha de Projeto',
+                'Tipo_Movimento': 'Tipo'
             }
         )
         
@@ -48,10 +52,49 @@ class Visualizer:
             line=dict(width=2)
         )
         
+        # Adicionar linha horizontal no zero para referência
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5)
+        
+        return fig
+    
+    def create_entrada_saida_comparison_chart(self, df):
+        """Cria gráfico comparativo entre entrada e saída"""
+        # Agrupar por dia e tipo de movimento
+        daily_comparison = df.groupby([
+            df['Data Movimento'].dt.date,
+            'Linha ATO',
+            'Tipo_Movimento'
+        ])['Quantidade'].sum().reset_index()
+        
+        # Tornar valores de saída positivos para melhor visualização
+        daily_comparison.loc[daily_comparison['Tipo_Movimento'] == 'Saída', 'Quantidade'] = \
+            abs(daily_comparison.loc[daily_comparison['Tipo_Movimento'] == 'Saída', 'Quantidade'])
+        
+        fig = px.bar(
+            daily_comparison,
+            x='Data Movimento',
+            y='Quantidade',
+            color='Tipo_Movimento',
+            facet_col='Linha ATO',
+            facet_col_wrap=2,
+            title='📊 Comparação Diária: Entrada vs Saída por Linha de Projeto',
+            labels={
+                'Data Movimento': 'Data',
+                'Quantidade': 'Quantidade',
+                'Tipo_Movimento': 'Tipo'
+            },
+            color_discrete_map={'Entrada': 'green', 'Saída': 'red'}
+        )
+        
+        fig.update_layout(
+            height=800,
+            showlegend=True
+        )
+        
         return fig
     
     def create_peaks_chart(self, df, peaks_data):
-        """Cria gráfico destacando os picos detectados"""
+        """Cria gráfico destacando os picos detectados para entrada e saída"""
         fig = go.Figure()
         
         color_idx = 0
@@ -59,47 +102,59 @@ class Visualizer:
         for project, data in peaks_data.items():
             color = self.colors[color_idx % len(self.colors)]
             
-            # Linha principal
-            fig.add_trace(go.Scatter(
-                x=data['data']['Data Movimento'],
-                y=data['data']['Quantidade'],
-                mode='lines+markers',
-                name=f'{project}',
-                line=dict(color=color, width=2),
-                marker=dict(size=4)
-            ))
-            
-            # Picos altos
-            if len(data['peaks_high']) > 0:
+            # Linha de entrada
+            if len(data['entrada_data']) > 0:
                 fig.add_trace(go.Scatter(
-                    x=data['dates_high'],
-                    y=data['values_high'],
-                    mode='markers',
-                    name=f'{project} - Picos Altos',
-                    marker=dict(
-                        color='red',
-                        size=12,
-                        symbol='triangle-up',
-                        line=dict(color='darkred', width=2)
-                    ),
-                    showlegend=False
+                    x=data['entrada_data']['Data Movimento'],
+                    y=data['entrada_data']['Quantidade'],
+                    mode='lines+markers',
+                    name=f'{project} - Entrada',
+                    line=dict(color=color, width=2, dash='solid'),
+                    marker=dict(size=4)
                 ))
+                
+                # Picos de entrada
+                if len(data['peaks_entrada']) > 0:
+                    fig.add_trace(go.Scatter(
+                        x=data['dates_entrada'],
+                        y=data['values_entrada'],
+                        mode='markers',
+                        name=f'{project} - Picos Entrada',
+                        marker=dict(
+                            color='green',
+                            size=12,
+                            symbol='triangle-up',
+                            line=dict(color='darkgreen', width=2)
+                        ),
+                        showlegend=False
+                    ))
             
-            # Picos baixos
-            if len(data['peaks_low']) > 0:
+            # Linha de saída
+            if len(data['saida_data']) > 0:
                 fig.add_trace(go.Scatter(
-                    x=data['dates_low'],
-                    y=data['values_low'],
-                    mode='markers',
-                    name=f'{project} - Picos Baixos',
-                    marker=dict(
-                        color='blue',
-                        size=12,
-                        symbol='triangle-down',
-                        line=dict(color='darkblue', width=2)
-                    ),
-                    showlegend=False
+                    x=data['saida_data']['Data Movimento'],
+                    y=data['saida_data']['Quantidade'],
+                    mode='lines+markers',
+                    name=f'{project} - Saída',
+                    line=dict(color=color, width=2, dash='dash'),
+                    marker=dict(size=4)
                 ))
+                
+                # Picos de saída
+                if len(data['peaks_saida']) > 0:
+                    fig.add_trace(go.Scatter(
+                        x=data['dates_saida'],
+                        y=data['values_saida'],
+                        mode='markers',
+                        name=f'{project} - Picos Saída',
+                        marker=dict(
+                            color='red',
+                            size=12,
+                            symbol='triangle-down',
+                            line=dict(color='darkred', width=2)
+                        ),
+                        showlegend=False
+                    ))
             
             color_idx += 1
         
@@ -118,11 +173,14 @@ class Visualizer:
             )
         )
         
+        # Adicionar linha horizontal no zero para referência
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.5)
+        
         # Adicionar anotações explicativas
         fig.add_annotation(
             x=0.02, y=0.98,
             xref="paper", yref="paper",
-            text="🔺 Picos Altos | 🔻 Picos Baixos",
+            text="🔺 Picos Entrada | 🔻 Picos Saída | —— Entrada | - - Saída",
             showarrow=False,
             font=dict(size=12, color="gray"),
             bgcolor="rgba(255,255,255,0.8)",
@@ -269,6 +327,68 @@ class Visualizer:
                 tickmode='linear',
                 tick0=0,
                 dtick=1
+            )
+        )
+        
+        return fig
+    
+    def create_hourly_entrada_saida_chart(self, hourly_data):
+        """Cria gráfico de análise por hora separando entrada e saída"""
+        fig = px.bar(
+            hourly_data,
+            x='Hora',
+            y='Total',
+            color='Tipo_Movimento',
+            facet_col='Linha ATO',
+            facet_col_wrap=2,
+            title='🕐 Distribuição por Hora: Entrada vs Saída',
+            labels={
+                'Hora': 'Hora do Dia',
+                'Total': 'Quantidade Total',
+                'Tipo_Movimento': 'Tipo'
+            },
+            barmode='group',
+            color_discrete_map={'Entrada': 'green', 'Saída': 'red'}
+        )
+        
+        fig.update_layout(
+            height=600,
+            xaxis=dict(
+                tickmode='linear',
+                tick0=0,
+                dtick=1,
+                title='Hora do Dia (0-23)'
+            )
+        )
+        
+        return fig
+    
+    def create_daily_number_entrada_saida_chart(self, daily_data):
+        """Cria gráfico de análise por dia do mês separando entrada e saída"""
+        fig = px.bar(
+            daily_data,
+            x='Dia',
+            y='Total',
+            color='Tipo_Movimento',
+            facet_col='Linha ATO',
+            facet_col_wrap=2,
+            title='📅 Distribuição por Dia do Mês: Entrada vs Saída',
+            labels={
+                'Dia': 'Dia do Mês',
+                'Total': 'Quantidade Total',
+                'Tipo_Movimento': 'Tipo'
+            },
+            barmode='group',
+            color_discrete_map={'Entrada': 'green', 'Saída': 'red'}
+        )
+        
+        fig.update_layout(
+            height=600,
+            xaxis=dict(
+                tickmode='linear',
+                tick0=1,
+                dtick=1,
+                title='Dia do Mês (1-31)'
             )
         )
         

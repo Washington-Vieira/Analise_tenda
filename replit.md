@@ -98,14 +98,25 @@ Preferred communication style: Simple, everyday language.
    - **Solution**: Try openpyxl first, fallback to xlrd
    - **Benefits**: Broader file format compatibility
 
-3. **Streamlit Framework Choice**: Selected for rapid prototyping and deployment
+3. **Dual File Processing**: Implemented separate upload for entrada/saída files
+   - **Date**: July 23, 2025
+   - **Rationale**: User requested separate analysis of positive (entrada) and negative (saída) values
+   - **Implementation**: Two file uploaders with automatic type marking and value normalization
+   - **Benefits**: Clear separation of concerns, accurate entrada/saída comparison
+
+4. **Enhanced Date Processing**: Extract day number and hour from DD/MM/YYYY HH:MM:SS format
+   - **Date**: July 23, 2025
+   - **Features**: Extracts day (1-31) and hour (0-23) for granular temporal analysis
+   - **Benefits**: More precise peak detection and temporal pattern analysis
+
+5. **Streamlit Framework Choice**: Selected for rapid prototyping and deployment
    - **Rationale**: Quick development cycle, built-in UI components
    - **Trade-offs**: Limited customization vs. faster development
 
-4. **Plotly for Visualizations**: Interactive charts with hover functionality
+6. **Plotly for Visualizations**: Interactive charts with hover functionality
    - **Benefits**: Rich interactivity, professional appearance
-   - **Features**: Timeline analysis, multi-line comparisons, responsive design
+   - **Features**: Timeline analysis, entrada/saída comparisons, responsive design
 
-5. **Real-time Processing**: File processing occurs immediately after upload
+7. **Real-time Processing**: File processing occurs immediately after upload
    - **Approach**: In-memory processing with progress indicators
    - **Benefits**: Immediate feedback, no persistent storage requirements
