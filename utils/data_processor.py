@@ -35,6 +35,23 @@ class DataProcessor:
         
         return missing_columns
     
+    def validate_cobertura_columns(self, df):
+        """Validação específica e flexível para arquivo de cobertura"""
+        # Colunas obrigatórias básicas
+        essential_columns = ['Nível de Cobertura']
+        
+        # Verificar se pelo menos a coluna de nível de cobertura existe
+        if 'Nível de Cobertura' not in df.columns:
+            # Tentar encontrar colunas similares
+            similar_columns = [col for col in df.columns if 'cobertura' in col.lower() or 'nivel' in col.lower()]
+            if similar_columns:
+                return {'missing': ['Nível de Cobertura'], 'suggestions': similar_columns}
+            else:
+                return {'missing': ['Nível de Cobertura'], 'suggestions': []}
+        
+        # Se tem a coluna principal, arquivo é válido
+        return {'missing': [], 'suggestions': []}
+    
     def process_temporal_data(self, df):
         """Processa dados temporais e limpa o dataset"""
         try:
@@ -294,27 +311,43 @@ class DataProcessor:
             # Adicionar data atual para cada registro
             df_processed['Data_Processamento'] = date.today()
             
-            # Converter Data Alteração se existir
-            if 'Data Alteração' in df_processed.columns:
-                df_processed['Data Alteração'] = pd.to_datetime(
-                    df_processed['Data Alteração'], 
-                    errors='coerce',
-                    dayfirst=True
-                )
+            # Debug - mostrar colunas disponíveis
+            st.info(f"📋 Colunas encontradas no arquivo: {', '.join(df_processed.columns.tolist())}")
             
-            # Converter campos numéricos
+            # Converter Data Alteração se existir (diferentes possibilidades de nome)
+            date_columns = ['Data Alteração', 'Data_Alteracao', 'Data Alteracao', 
+                          'Data de Alteração', 'Data de Alteracao', 'Data']
+            
+            for date_col in date_columns:
+                if date_col in df_processed.columns:
+                    try:
+                        df_processed[date_col] = pd.to_datetime(
+                            df_processed[date_col], 
+                            errors='coerce',
+                            dayfirst=True
+                        )
+                        break
+                    except:
+                        continue
+            
+            # Converter campos numéricos possíveis
             numeric_columns = ['Necessidade', 'Balance', 'Consumo(Pico)', 'Dias de Visão', 
                              'Lead Time', 'E.S (%)', 'Lote', 'Qtde. Circuitos', 
-                             'Qtde. Kanbans', 'Saldo Atual', 'Concluídos', 'Em Processo']
+                             'Qtde. Kanbans', 'Saldo Atual', 'Concluídos', 'Em Processo',
+                             'Quantidade', 'Qtd', 'Valor', 'Estoque', 'Demanda']
             
             for col in numeric_columns:
                 if col in df_processed.columns:
-                    df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
+                    try:
+                        df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
+                    except:
+                        continue
             
             return df_processed
         
         except Exception as e:
             st.error(f"Erro ao processar dados de cobertura: {str(e)}")
+            st.error(f"Detalhes do erro: {type(e).__name__}")
             return None
     
     def analyze_cobertura_levels(self, df):
@@ -333,52 +366,113 @@ class DataProcessor:
     
     def analyze_critical_items_over_time(self, df):
         """Analisa itens críticos ao longo do tempo"""
-        # Assumir que 'Crítico' é um dos níveis de cobertura
-        critical_data = df[df['Nível de Cobertura'].str.contains('crítico|Crítico|CRÍTICO', na=False)]
+        try:
+            # Buscar padrões de criticidade na coluna de nível de cobertura
+            critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
+                               'critical', 'Critical', 'CRITICAL', 'baixo', 'Baixo', 'BAIXO']
+            
+            # Criar máscara para encontrar itens críticos
+            critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
+                '|'.join(critical_patterns), 
+                case=False, 
+                na=False
+            )
+            
+            critical_data = df[critical_mask]
+            
+            if len(critical_data) == 0:
+                return pd.DataFrame()
+            
+            # Buscar coluna de data disponível
+            date_columns = ['Data Alteração', 'Data_Alteracao', 'Data Alteracao', 
+                          'Data de Alteração', 'Data de Alteracao', 'Data']
+            
+            date_column = 'Data_Processamento'  # Padrão
+            for col in date_columns:
+                if col in critical_data.columns:
+                    date_column = col
+                    break
+            
+            # Agrupar por data
+            if date_column in ['Data_Processamento']:
+                critical_timeline = critical_data.groupby(date_column).size().reset_index()
+                critical_timeline.columns = ['Data', 'Quantidade_Critica']
+            else:
+                critical_timeline = critical_data.groupby(
+                    critical_data[date_column].dt.date
+                ).size().reset_index()
+                critical_timeline.columns = ['Data', 'Quantidade_Critica']
+            
+            return critical_timeline
         
-        if len(critical_data) == 0:
+        except Exception as e:
+            st.error(f"Erro na análise temporal de críticos: {str(e)}")
             return pd.DataFrame()
-        
-        # Se temos Data Alteração, usar ela, senão usar Data_Processamento
-        date_column = 'Data Alteração' if 'Data Alteração' in critical_data.columns else 'Data_Processamento'
-        
-        # Agrupar por data
-        if date_column == 'Data Alteração':
-            critical_timeline = critical_data.groupby(
-                critical_data[date_column].dt.date
-            ).size().reset_index()
-            critical_timeline.columns = ['Data', 'Quantidade_Critica']
-        else:
-            critical_timeline = critical_data.groupby(date_column).size().reset_index()
-            critical_timeline.columns = ['Data', 'Quantidade_Critica']
-        
-        return critical_timeline
     
     def get_critical_summary(self, df):
         """Cria resumo de itens críticos"""
-        critical_data = df[df['Nível de Cobertura'].str.contains('crítico|Crítico|CRÍTICO', na=False)]
+        try:
+            # Usar os mesmos padrões da função anterior
+            critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
+                               'critical', 'Critical', 'CRITICAL', 'baixo', 'Baixo', 'BAIXO']
+            
+            critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
+                '|'.join(critical_patterns), 
+                case=False, 
+                na=False
+            )
+            
+            critical_data = df[critical_mask]
+            
+            if len(critical_data) == 0:
+                return {
+                    'total_critical': 0,
+                    'critical_by_line': pd.DataFrame(),
+                    'critical_by_area': pd.DataFrame()
+                }
+            
+            total_critical = len(critical_data)
+            
+            # Por linha ATO (verificar se coluna existe)
+            line_columns = ['Linha de ATO', 'Linha ATO', 'Linha_ATO', 'Projeto', 'Line']
+            line_column = None
+            for col in line_columns:
+                if col in critical_data.columns:
+                    line_column = col
+                    break
+            
+            if line_column:
+                critical_by_line = critical_data.groupby(line_column).size().reset_index()
+                critical_by_line.columns = ['Linha de ATO', 'Quantidade_Critica']
+                critical_by_line = critical_by_line.sort_values('Quantidade_Critica', ascending=False)
+            else:
+                critical_by_line = pd.DataFrame()
+            
+            # Por área (verificar se coluna existe)
+            area_columns = ['Área', 'Area', 'Setor', 'Departamento']
+            area_column = None
+            for col in area_columns:
+                if col in critical_data.columns:
+                    area_column = col
+                    break
+            
+            if area_column:
+                critical_by_area = critical_data.groupby(area_column).size().reset_index()
+                critical_by_area.columns = ['Área', 'Quantidade_Critica']
+                critical_by_area = critical_by_area.sort_values('Quantidade_Critica', ascending=False)
+            else:
+                critical_by_area = pd.DataFrame()
+            
+            return {
+                'total_critical': total_critical,
+                'critical_by_line': critical_by_line,
+                'critical_by_area': critical_by_area
+            }
         
-        if len(critical_data) == 0:
+        except Exception as e:
+            st.error(f"Erro na análise de críticos: {str(e)}")
             return {
                 'total_critical': 0,
                 'critical_by_line': pd.DataFrame(),
                 'critical_by_area': pd.DataFrame()
             }
-        
-        total_critical = len(critical_data)
-        
-        # Por linha ATO
-        critical_by_line = critical_data.groupby('Linha de ATO').size().reset_index()
-        critical_by_line.columns = ['Linha de ATO', 'Quantidade_Critica']
-        critical_by_line = critical_by_line.sort_values('Quantidade_Critica', ascending=False)
-        
-        # Por área
-        critical_by_area = critical_data.groupby('Área').size().reset_index()
-        critical_by_area.columns = ['Área', 'Quantidade_Critica']
-        critical_by_area = critical_by_area.sort_values('Quantidade_Critica', ascending=False)
-        
-        return {
-            'total_critical': total_critical,
-            'critical_by_line': critical_by_line,
-            'critical_by_area': critical_by_area
-        }

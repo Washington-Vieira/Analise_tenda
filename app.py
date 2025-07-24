@@ -76,16 +76,14 @@ def main():
                 df_cobertura = processor.load_excel_file(cobertura_file)
                 
                 if df_cobertura is not None:
-                    # Validar colunas obrigatórias para cobertura
-                    required_cobertura_columns = [
-                        'Nível de Cobertura', 'Material', 'Necessidade', 'Balance',
-                        'Linha MAE', 'Linha de ATO', 'Área'
-                    ]
+                    # Validar colunas para cobertura (mais flexível)
+                    validation_result = processor.validate_cobertura_columns(df_cobertura)
                     
-                    missing_cobertura = processor.validate_columns(df_cobertura, required_cobertura_columns)
-                    
-                    if missing_cobertura:
-                        st.error(f"❌ Colunas obrigatórias não encontradas no arquivo de COBERTURA: {', '.join(missing_cobertura)}")
+                    if validation_result['missing']:
+                        st.error(f"❌ Coluna principal não encontrada: {', '.join(validation_result['missing'])}")
+                        if validation_result['suggestions']:
+                            st.info(f"💡 Colunas similares encontradas: {', '.join(validation_result['suggestions'])}")
+                        st.info("🔍 Verificando todas as colunas do arquivo...")
                     else:
                         # Processar dados de cobertura
                         df_cobertura_processed = processor.process_cobertura_data(df_cobertura)
