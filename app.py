@@ -267,46 +267,6 @@ def main():
                             )
                             
                             if len(df_filtered) > 0:
-                                # Análise de picos de entrada/saída
-                                st.header("📊 Análise de Picos de Entrada/Saída")
-                                
-                                # Gráfico principal melhorado
-                                fig_timeline = visualizer.create_simple_timeline_chart(df_filtered)
-                                st.plotly_chart(fig_timeline, use_container_width=True)
-                                
-                                # Gráfico de comparação entrada vs saída (barras por dia)
-                                st.subheader("📊 Comparação Diária: Entrada vs Saída")
-                                fig_comparison = visualizer.create_entrada_saida_comparison_chart(df_filtered)
-                                st.plotly_chart(fig_comparison, use_container_width=True)
-                                
-                                # Análise de picos
-                                st.header("⚡ Análise de Picos de Entrada/Saída")
-                                
-                                # Detectar picos por projeto
-                                peaks_data = processor.detect_peaks_by_project(df_filtered)
-                                
-                                if peaks_data:
-                                    # Gráfico de picos
-                                    fig_peaks = visualizer.create_peaks_chart(df_filtered, peaks_data)
-                                    st.plotly_chart(fig_peaks, use_container_width=True)
-                                    
-                                    # Tabela de picos
-                                    st.subheader("📋 Detalhes dos Picos")
-                                    peaks_df = processor.create_peaks_summary(peaks_data)
-                                    st.dataframe(
-                                        peaks_df,
-                                        use_container_width=True,
-                                        column_config={
-                                            "Valor Pico": st.column_config.NumberColumn(
-                                                "Valor do Pico",
-                                                format="%.0f"
-                                            ),
-                                            "Data/Hora": st.column_config.DatetimeColumn(
-                                                "Data/Hora do Pico",
-                                                format="DD/MM/YYYY HH:mm"
-                                            )
-                                        }
-                                    )
                                 
                                 # Análise por hora com entrada/saída
                                 st.header("🕐 Análise por Hora do Dia")

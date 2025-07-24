@@ -478,13 +478,20 @@ class Visualizer:
     
     def create_cobertura_pie_chart(self, cobertura_data):
         """Cria gráfico de pizza para níveis de cobertura"""
-        # Criar cores personalizadas - vermelho para crítico, outras cores para o resto
+        # Criar cores personalizadas - vermelho apenas para crítico
         colors = []
+        color_palette = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#8B5A3C', '#6A994E', '#264653']
+        color_index = 0
+        
         for nivel in cobertura_data['Nível de Cobertura']:
-            if any(word in str(nivel).lower() for word in ['crítico', 'critico', 'critical', 'baixo']):
-                colors.append('#FF0000')  # Vermelho para crítico
+            nivel_str = str(nivel).lower()
+            if any(word in nivel_str for word in ['crítico', 'critico', 'critical']):
+                colors.append('#FF0000')  # Vermelho apenas para crítico
+            elif 'baixo' in nivel_str:
+                colors.append('#FFA500')  # Laranja para baixo
             else:
-                colors.append('#2E86AB')  # Azul para outros
+                colors.append(color_palette[color_index % len(color_palette)])
+                color_index += 1
         
         fig = px.pie(
             cobertura_data,
