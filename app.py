@@ -127,36 +127,20 @@ def main():
                             critical_summary = processor.get_critical_summary(df_cobertura_processed)
                             
                             if critical_summary['total_critical'] > 0:
-                                st.subheader("🚨 Análise de Itens Críticos")
+                                # Apenas mostrar evolução temporal melhorada
+                                st.subheader("📈 Evolução de Itens Críticos ao Longo do Tempo")
                                 
-                                col1, col2 = st.columns(2)
-                                
-                                with col1:
-                                    st.metric("Total de Itens Críticos", critical_summary['total_critical'])
-                                
-                                with col2:
-                                    critical_percentage = (critical_summary['total_critical'] / total_items * 100)
-                                    st.metric("Percentual Crítico", f"{critical_percentage:.1f}%")
-                                
-                                # Gráfico de itens críticos por linha
-                                fig_critical_line = visualizer.create_critical_by_line_chart(critical_summary['critical_by_line'])
-                                st.plotly_chart(fig_critical_line, use_container_width=True)
-                                
-                                # Evolução temporal de itens críticos
                                 critical_timeline = processor.analyze_critical_items_over_time(df_cobertura_processed)
                                 fig_critical_timeline = visualizer.create_critical_timeline_chart(critical_timeline)
                                 st.plotly_chart(fig_critical_timeline, use_container_width=True)
                                 
-                                # Tabelas detalhadas
+                                # Mostrar apenas um resumo simples
                                 col1, col2 = st.columns(2)
-                                
                                 with col1:
-                                    st.subheader("📊 Críticos por Linha de Projeto")
-                                    st.dataframe(critical_summary['critical_by_line'], use_container_width=True)
-                                
+                                    st.metric("Total de Itens Críticos", critical_summary['total_critical'])
                                 with col2:
-                                    st.subheader("📊 Críticos por Área")
-                                    st.dataframe(critical_summary['critical_by_area'], use_container_width=True)
+                                    critical_percentage = (critical_summary['total_critical'] / total_items * 100)
+                                    st.metric("Percentual Crítico", f"{critical_percentage:.1f}%")
                             
                             else:
                                 st.success("✅ Nenhum item crítico encontrado!")
@@ -283,10 +267,10 @@ def main():
                             )
                             
                             if len(df_filtered) > 0:
-                                # Análise temporal por linha de projeto
-                                st.header("📊 Análise Temporal por Linha de Projeto")
+                                # Análise de picos de entrada/saída
+                                st.header("📊 Análise de Picos de Entrada/Saída")
                                 
-                                # Gráfico principal simplificado
+                                # Gráfico principal melhorado
                                 fig_timeline = visualizer.create_simple_timeline_chart(df_filtered)
                                 st.plotly_chart(fig_timeline, use_container_width=True)
                                 

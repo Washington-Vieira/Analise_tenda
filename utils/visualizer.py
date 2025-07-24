@@ -478,13 +478,21 @@ class Visualizer:
     
     def create_cobertura_pie_chart(self, cobertura_data):
         """Cria gráfico de pizza para níveis de cobertura"""
+        # Criar cores personalizadas - vermelho para crítico, outras cores para o resto
+        colors = []
+        for nivel in cobertura_data['Nível de Cobertura']:
+            if any(word in str(nivel).lower() for word in ['crítico', 'critico', 'critical', 'baixo']):
+                colors.append('#FF0000')  # Vermelho para crítico
+            else:
+                colors.append('#2E86AB')  # Azul para outros
+        
         fig = px.pie(
             cobertura_data,
             values='Quantidade',
             names='Nível de Cobertura',
             title='🥧 Distribuição dos Níveis de Cobertura',
             hover_data=['Percentual'],
-            color_discrete_sequence=px.colors.qualitative.Set3
+            color_discrete_sequence=colors
         )
         
         fig.update_traces(
@@ -586,53 +594,69 @@ class Visualizer:
         return fig
     
     def create_simple_timeline_chart(self, df):
-        """Cria gráfico de linha temporal simplificado"""
-        # Dados por dia
-        daily_data = df.groupby([
-            df['Data Movimento'].dt.date,
-            'Linha ATO',
+        """Cria gráfico de picos de entrada/saída estilo análise por hora"""
+        # Agrupar dados por hora como no gráfico original
+        hourly_summary = df.groupby([
+            df['Data Movimento'].dt.hour,
             'Tipo_Movimento'
         ])['Quantidade'].sum().reset_index()
         
         # Separar entrada e saída
-        entrada_data = daily_data[daily_data['Tipo_Movimento'] == 'Entrada']
-        saida_data = daily_data[daily_data['Tipo_Movimento'] == 'Saída']
-        saida_data['Quantidade'] = abs(saida_data['Quantidade'])  # Valores positivos para visualização
+        entrada_hourly = hourly_summary[hourly_summary['Tipo_Movimento'] == 'Entrada']
+        saida_hourly = hourly_summary[hourly_summary['Tipo_Movimento'] == 'Saída']
+        saida_hourly = saida_hourly.copy()
+        saida_hourly['Quantidade'] = abs(saida_hourly['Quantidade'])  # Valores positivos
         
+        # Criar range completo de horas (0-23)
+        all_hours = pd.DataFrame({'Data Movimento': range(24)})
+        
+        # Merge para garantir todas as horas
+        entrada_complete = all_hours.merge(entrada_hourly, left_on='Data Movimento', right_on='Data Movimento', how='left')
+        entrada_complete['Quantidade'] = entrada_complete['Quantidade'].fillna(0)
+        entrada_complete['Tipo_Movimento'] = 'Entrada'
+        
+        saida_complete = all_hours.merge(saida_hourly, left_on='Data Movimento', right_on='Data Movimento', how='left')
+        saida_complete['Quantidade'] = saida_complete['Quantidade'].fillna(0)
+        saida_complete['Tipo_Movimento'] = 'Saída'
+        
+        # Criar gráfico de barras agrupadas
         fig = go.Figure()
         
-        # Adicionar linhas para cada projeto
-        for project in df['Linha ATO'].unique():
-            # Entrada
-            project_entrada = entrada_data[entrada_data['Linha ATO'] == project]
-            if not project_entrada.empty:
-                fig.add_trace(go.Scatter(
-                    x=project_entrada['Data Movimento'],
-                    y=project_entrada['Quantidade'],
-                    mode='lines+markers',
-                    name=f'{project} - Entrada',
-                    line=dict(color='green', width=2),
-                    marker=dict(size=6)
-                ))
-            
-            # Saída
-            project_saida = saida_data[saida_data['Linha ATO'] == project]
-            if not project_saida.empty:
-                fig.add_trace(go.Scatter(
-                    x=project_saida['Data Movimento'],
-                    y=project_saida['Quantidade'],
-                    mode='lines+markers',
-                    name=f'{project} - Saída',
-                    line=dict(color='red', width=2, dash='dash'),
-                    marker=dict(size=6)
-                ))
+        # Adicionar barras de entrada
+        fig.add_trace(go.Bar(
+            x=entrada_complete['Data Movimento'],
+            y=entrada_complete['Quantidade'],
+            name='Entrada',
+            marker_color='#28a745',  # Verde
+            text=entrada_complete['Quantidade'].round(0),
+            textposition='outside',
+            hovertemplate='<b>Entrada</b><br>Hora: %{x}h<br>Quantidade: %{y:,.0f}<extra></extra>'
+        ))
+        
+        # Adicionar barras de saída
+        fig.add_trace(go.Bar(
+            x=saida_complete['Data Movimento'],
+            y=saida_complete['Quantidade'],
+            name='Saída',
+            marker_color='#dc3545',  # Vermelho
+            text=saida_complete['Quantidade'].round(0),
+            textposition='outside',
+            hovertemplate='<b>Saída</b><br>Hora: %{x}h<br>Quantidade: %{y:,.0f}<extra></extra>'
+        ))
         
         fig.update_layout(
-            title='📈 Análise Temporal Simplificada: Entrada vs Saída',
-            xaxis_title='Data',
-            yaxis_title='Quantidade',
+            title='📊 Análise de Picos de Entrada/Saída por Hora',
+            xaxis_title='Hora do Dia',
+            yaxis_title='Quantidade Total',
             height=500,
+            barmode='group',
             hovermode='x unified',
+            xaxis=dict(
+                tickmode='linear',
+                tick0=0,
+                dtick=1,
+                ticksuffix='h'
+            ),
             legend=dict(
                 orientation="h",
                 yanchor="bottom",
