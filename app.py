@@ -73,6 +73,7 @@ def main():
         try:
             with st.spinner("🔄 Processando dados de cobertura..."):
                 processor = DataProcessor()
+                visualizer = Visualizer()
                 df_cobertura = processor.load_excel_file(cobertura_file)
                 
                 if df_cobertura is not None:
