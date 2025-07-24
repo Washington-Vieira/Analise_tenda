@@ -475,3 +475,171 @@ class Visualizer:
         )
         
         return fig
+    
+    def create_cobertura_pie_chart(self, cobertura_data):
+        """Cria gráfico de pizza para níveis de cobertura"""
+        fig = px.pie(
+            cobertura_data,
+            values='Quantidade',
+            names='Nível de Cobertura',
+            title='🥧 Distribuição dos Níveis de Cobertura',
+            hover_data=['Percentual'],
+            color_discrete_sequence=px.colors.qualitative.Set3
+        )
+        
+        fig.update_traces(
+            textposition='inside',
+            textinfo='percent+label',
+            hovertemplate='<b>%{label}</b><br>Quantidade: %{value}<br>Percentual: %{percent}<extra></extra>'
+        )
+        
+        fig.update_layout(
+            height=500,
+            showlegend=True,
+            legend=dict(
+                orientation="v",
+                yanchor="middle",
+                y=0.5,
+                xanchor="left",
+                x=1.01
+            )
+        )
+        
+        return fig
+    
+    def create_critical_timeline_chart(self, critical_timeline):
+        """Cria gráfico de linha temporal para itens críticos"""
+        if critical_timeline.empty:
+            # Criar gráfico vazio com mensagem
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Nenhum item crítico encontrado",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                font=dict(size=16, color="gray")
+            )
+            fig.update_layout(
+                title="📈 Evolução de Itens Críticos ao Longo do Tempo",
+                height=400
+            )
+            return fig
+        
+        fig = px.line(
+            critical_timeline,
+            x='Data',
+            y='Quantidade_Critica',
+            title='📈 Evolução de Itens Críticos ao Longo do Tempo',
+            labels={
+                'Data': 'Data',
+                'Quantidade_Critica': 'Quantidade de Itens Críticos'
+            },
+            markers=True
+        )
+        
+        fig.update_traces(
+            line=dict(color='red', width=3),
+            marker=dict(size=8, color='darkred')
+        )
+        
+        fig.update_layout(
+            height=400,
+            hovermode='x unified'
+        )
+        
+        return fig
+    
+    def create_critical_by_line_chart(self, critical_by_line):
+        """Cria gráfico de barras para itens críticos por linha"""
+        if critical_by_line.empty:
+            fig = go.Figure()
+            fig.add_annotation(
+                text="Nenhum item crítico por linha encontrado",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                font=dict(size=14, color="gray")
+            )
+            fig.update_layout(
+                title="📊 Itens Críticos por Linha de Projeto",
+                height=400
+            )
+            return fig
+        
+        fig = px.bar(
+            critical_by_line.head(10),  # Top 10
+            x='Quantidade_Critica',
+            y='Linha de ATO',
+            orientation='h',
+            title='📊 Top 10 - Itens Críticos por Linha de Projeto',
+            labels={
+                'Quantidade_Critica': 'Quantidade de Itens Críticos',
+                'Linha de ATO': 'Linha de Projeto'
+            },
+            color='Quantidade_Critica',
+            color_continuous_scale='Reds'
+        )
+        
+        fig.update_layout(
+            height=500,
+            yaxis={'categoryorder': 'total ascending'}
+        )
+        
+        return fig
+    
+    def create_simple_timeline_chart(self, df):
+        """Cria gráfico de linha temporal simplificado"""
+        # Dados por dia
+        daily_data = df.groupby([
+            df['Data Movimento'].dt.date,
+            'Linha ATO',
+            'Tipo_Movimento'
+        ])['Quantidade'].sum().reset_index()
+        
+        # Separar entrada e saída
+        entrada_data = daily_data[daily_data['Tipo_Movimento'] == 'Entrada']
+        saida_data = daily_data[daily_data['Tipo_Movimento'] == 'Saída']
+        saida_data['Quantidade'] = abs(saida_data['Quantidade'])  # Valores positivos para visualização
+        
+        fig = go.Figure()
+        
+        # Adicionar linhas para cada projeto
+        for project in df['Linha ATO'].unique():
+            # Entrada
+            project_entrada = entrada_data[entrada_data['Linha ATO'] == project]
+            if not project_entrada.empty:
+                fig.add_trace(go.Scatter(
+                    x=project_entrada['Data Movimento'],
+                    y=project_entrada['Quantidade'],
+                    mode='lines+markers',
+                    name=f'{project} - Entrada',
+                    line=dict(color='green', width=2),
+                    marker=dict(size=6)
+                ))
+            
+            # Saída
+            project_saida = saida_data[saida_data['Linha ATO'] == project]
+            if not project_saida.empty:
+                fig.add_trace(go.Scatter(
+                    x=project_saida['Data Movimento'],
+                    y=project_saida['Quantidade'],
+                    mode='lines+markers',
+                    name=f'{project} - Saída',
+                    line=dict(color='red', width=2, dash='dash'),
+                    marker=dict(size=6)
+                ))
+        
+        fig.update_layout(
+            title='📈 Análise Temporal Simplificada: Entrada vs Saída',
+            xaxis_title='Data',
+            yaxis_title='Quantidade',
+            height=500,
+            hovermode='x unified',
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5
+            )
+        )
+        
+        return fig

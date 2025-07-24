@@ -40,8 +40,16 @@ def main():
         saida_file = st.file_uploader(
             "Arquivo de Saídas", 
             type=['xlsx', 'xls'],
-            help="Arquivo Excel with dados de saída (valores negativos ou positivos)",
+            help="Arquivo Excel com dados de saída (valores negativos ou positivos)",
             key="saida"
+        )
+        
+        st.markdown("**3. Importe a Cobertura:**")
+        cobertura_file = st.file_uploader(
+            "Arquivo de Cobertura",
+            type=['xlsx', 'xls'],
+            help="Arquivo Excel com dados de cobertura e análise crítica",
+            key="cobertura"
         )
         
         # Mostrar status dos arquivos
@@ -52,8 +60,120 @@ def main():
         if saida_file is not None:
             st.success("✅ Arquivo de saída carregado!")
             st.info(f"📁 **Saída:** {saida_file.name}")
+        
+        if cobertura_file is not None:
+            st.success("✅ Arquivo de cobertura carregado!")
+            st.info(f"📁 **Cobertura:** {cobertura_file.name}")
     
     # Área principal
+    # Análise de Cobertura (independente)
+    if cobertura_file is not None:
+        st.header("📊 Análise de Cobertura")
+        
+        try:
+            with st.spinner("🔄 Processando dados de cobertura..."):
+                processor = DataProcessor()
+                df_cobertura = processor.load_excel_file(cobertura_file)
+                
+                if df_cobertura is not None:
+                    # Validar colunas obrigatórias para cobertura
+                    required_cobertura_columns = [
+                        'Nível de Cobertura', 'Material', 'Necessidade', 'Balance',
+                        'Linha MAE', 'Linha de ATO', 'Área'
+                    ]
+                    
+                    missing_cobertura = processor.validate_columns(df_cobertura, required_cobertura_columns)
+                    
+                    if missing_cobertura:
+                        st.error(f"❌ Colunas obrigatórias não encontradas no arquivo de COBERTURA: {', '.join(missing_cobertura)}")
+                    else:
+                        # Processar dados de cobertura
+                        df_cobertura_processed = processor.process_cobertura_data(df_cobertura)
+                        
+                        if df_cobertura_processed is not None:
+                            # Estatísticas de cobertura
+                            col1, col2, col3 = st.columns(3)
+                            
+                            with col1:
+                                total_items = len(df_cobertura_processed)
+                                st.metric("Total de Itens", f"{total_items:,}")
+                            
+                            with col2:
+                                unique_materials = df_cobertura_processed['Material'].nunique()
+                                st.metric("Materiais Únicos", unique_materials)
+                            
+                            with col3:
+                                current_date = df_cobertura_processed['Data_Processamento'].iloc[0]
+                                st.metric("Data de Processamento", current_date.strftime('%d/%m/%Y'))
+                            
+                            # Análise dos níveis de cobertura
+                            st.subheader("🥧 Distribuição dos Níveis de Cobertura")
+                            
+                            cobertura_counts = processor.analyze_cobertura_levels(df_cobertura_processed)
+                            fig_pie = visualizer.create_cobertura_pie_chart(cobertura_counts)
+                            st.plotly_chart(fig_pie, use_container_width=True)
+                            
+                            # Tabela de níveis de cobertura
+                            st.subheader("📋 Detalhes dos Níveis de Cobertura")
+                            st.dataframe(
+                                cobertura_counts,
+                                use_container_width=True,
+                                column_config={
+                                    "Quantidade": st.column_config.NumberColumn("Quantidade", format="%d"),
+                                    "Percentual": st.column_config.NumberColumn("Percentual (%)", format="%.2f%%")
+                                }
+                            )
+                            
+                            # Análise de itens críticos
+                            critical_summary = processor.get_critical_summary(df_cobertura_processed)
+                            
+                            if critical_summary['total_critical'] > 0:
+                                st.subheader("🚨 Análise de Itens Críticos")
+                                
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.metric("Total de Itens Críticos", critical_summary['total_critical'])
+                                
+                                with col2:
+                                    critical_percentage = (critical_summary['total_critical'] / total_items * 100)
+                                    st.metric("Percentual Crítico", f"{critical_percentage:.1f}%")
+                                
+                                # Gráfico de itens críticos por linha
+                                fig_critical_line = visualizer.create_critical_by_line_chart(critical_summary['critical_by_line'])
+                                st.plotly_chart(fig_critical_line, use_container_width=True)
+                                
+                                # Evolução temporal de itens críticos
+                                critical_timeline = processor.analyze_critical_items_over_time(df_cobertura_processed)
+                                fig_critical_timeline = visualizer.create_critical_timeline_chart(critical_timeline)
+                                st.plotly_chart(fig_critical_timeline, use_container_width=True)
+                                
+                                # Tabelas detalhadas
+                                col1, col2 = st.columns(2)
+                                
+                                with col1:
+                                    st.subheader("📊 Críticos por Linha de Projeto")
+                                    st.dataframe(critical_summary['critical_by_line'], use_container_width=True)
+                                
+                                with col2:
+                                    st.subheader("📊 Críticos por Área")
+                                    st.dataframe(critical_summary['critical_by_area'], use_container_width=True)
+                            
+                            else:
+                                st.success("✅ Nenhum item crítico encontrado!")
+                        
+                        else:
+                            st.error("❌ Erro ao processar dados de cobertura.")
+                
+                else:
+                    st.error("❌ Erro ao carregar arquivo de cobertura.")
+        
+        except Exception as e:
+            st.error(f"❌ Erro ao processar arquivo de cobertura: {str(e)}")
+        
+        st.divider()
+    
+    # Análise de Entrada/Saída
     if entrada_file is not None and saida_file is not None:
         try:
             # Processar dados
@@ -167,12 +287,12 @@ def main():
                                 # Análise temporal por linha de projeto
                                 st.header("📊 Análise Temporal por Linha de Projeto")
                                 
-                                # Gráfico principal - séries temporais
-                                fig_timeline = visualizer.create_timeline_chart(df_filtered)
+                                # Gráfico principal simplificado
+                                fig_timeline = visualizer.create_simple_timeline_chart(df_filtered)
                                 st.plotly_chart(fig_timeline, use_container_width=True)
                                 
-                                # Gráfico de comparação entrada vs saída
-                                st.subheader("🔄 Comparação Entrada vs Saída")
+                                # Gráfico de comparação entrada vs saída (barras por dia)
+                                st.subheader("📊 Comparação Diária: Entrada vs Saída")
                                 fig_comparison = visualizer.create_entrada_saida_comparison_chart(df_filtered)
                                 st.plotly_chart(fig_comparison, use_container_width=True)
                                 
@@ -212,7 +332,7 @@ def main():
                                 fig_hourly = visualizer.create_hourly_entrada_saida_chart(hourly_data)
                                 st.plotly_chart(fig_hourly, use_container_width=True)
                                 
-                                # Análise por dia do mês com entrada/saída
+                                # Análise por dia do mês com entrada/saída (Simplificada)
                                 st.header("📅 Análise por Dia do Mês")
                                 
                                 daily_number_data = processor.analyze_daily_patterns_by_day_number_with_type(df_filtered)
@@ -278,16 +398,28 @@ def main():
             st.error(f"❌ Erro ao processar o arquivo: {str(e)}")
             st.info("💡 Verifique se o arquivo está no formato correto e contém todas as colunas obrigatórias.")
     
-    elif entrada_file is not None or saida_file is not None:
-        # Instruções quando apenas um arquivo foi carregado
+    elif entrada_file is not None or saida_file is not None or cobertura_file is not None:
+        # Instruções quando apenas alguns arquivos foram carregados
+        missing_files = []
         if entrada_file is None:
-            st.warning("⚠️ Faça upload do arquivo de **ENTRADA** para completar a análise")
+            missing_files.append("**ENTRADA**")
         if saida_file is None:
-            st.warning("⚠️ Faça upload do arquivo de **SAÍDA** para completar a análise")
+            missing_files.append("**SAÍDA**")
+        
+        if len(missing_files) > 0:
+            st.warning(f"⚠️ Para análise completa, faça upload dos arquivos: {', '.join(missing_files)}")
+        
+        if cobertura_file is None:
+            st.info("💡 Você também pode fazer upload do arquivo de **COBERTURA** para análise de criticidade")
     
     else:
         # Instruções quando nenhum arquivo foi carregado
-        st.info("👈 Faça upload dos dois arquivos Excel (entrada e saída) para começar a análise")
+        st.info("👈 Faça upload dos arquivos Excel para começar a análise")
+        st.markdown("""
+        **Arquivos disponíveis:**
+        - **Entrada e Saída**: Para análise temporal de movimentação
+        - **Cobertura**: Para análise de criticidade e níveis de cobertura
+        """)
         
         with st.expander("📋 Colunas Obrigatórias"):
             st.markdown("""
@@ -301,11 +433,21 @@ def main():
             - **Movimento**: Descrição do movimento
             - **Área**: Área responsável
             
+            **Para arquivo de Cobertura:**
+            - **Nível de Cobertura**: Nível do item (usado para análise de criticidade)
+            - **Material**: Código ou nome do material
+            - **Necessidade**: Quantidade necessária
+            - **Balance**: Saldo atual
+            - **Linha MAE**: Linha mãe do projeto
+            - **Linha de ATO**: Linha de projeto
+            - **Área**: Área responsável
+            
             **Exemplo de formato da Data Movimento:** 21/07/2025 06:08:01
             
             O aplicativo extrairá automaticamente:
             - **Dia:** 21 (dia do mês)
             - **Hora:** 06 (hora arredondada)
+            - **Data atual** para análise de cobertura
             """)
         
         with st.expander("ℹ️ Como Usar"):

@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import streamlit as st
 from scipy.signal import find_peaks
 import warnings
@@ -285,3 +285,100 @@ class DataProcessor:
             summary[col] = summary[col].round(2)
         
         return summary
+    
+    def process_cobertura_data(self, df):
+        """Processa dados de cobertura com data atual"""
+        try:
+            df_processed = df.copy()
+            
+            # Adicionar data atual para cada registro
+            df_processed['Data_Processamento'] = date.today()
+            
+            # Converter Data Alteração se existir
+            if 'Data Alteração' in df_processed.columns:
+                df_processed['Data Alteração'] = pd.to_datetime(
+                    df_processed['Data Alteração'], 
+                    errors='coerce',
+                    dayfirst=True
+                )
+            
+            # Converter campos numéricos
+            numeric_columns = ['Necessidade', 'Balance', 'Consumo(Pico)', 'Dias de Visão', 
+                             'Lead Time', 'E.S (%)', 'Lote', 'Qtde. Circuitos', 
+                             'Qtde. Kanbans', 'Saldo Atual', 'Concluídos', 'Em Processo']
+            
+            for col in numeric_columns:
+                if col in df_processed.columns:
+                    df_processed[col] = pd.to_numeric(df_processed[col], errors='coerce')
+            
+            return df_processed
+        
+        except Exception as e:
+            st.error(f"Erro ao processar dados de cobertura: {str(e)}")
+            return None
+    
+    def analyze_cobertura_levels(self, df):
+        """Analisa níveis de cobertura"""
+        if 'Nível de Cobertura' not in df.columns:
+            return pd.DataFrame()
+        
+        cobertura_counts = df['Nível de Cobertura'].value_counts().reset_index()
+        cobertura_counts.columns = ['Nível de Cobertura', 'Quantidade']
+        
+        # Calcular percentual
+        total = cobertura_counts['Quantidade'].sum()
+        cobertura_counts['Percentual'] = (cobertura_counts['Quantidade'] / total * 100).round(2)
+        
+        return cobertura_counts
+    
+    def analyze_critical_items_over_time(self, df):
+        """Analisa itens críticos ao longo do tempo"""
+        # Assumir que 'Crítico' é um dos níveis de cobertura
+        critical_data = df[df['Nível de Cobertura'].str.contains('crítico|Crítico|CRÍTICO', na=False)]
+        
+        if len(critical_data) == 0:
+            return pd.DataFrame()
+        
+        # Se temos Data Alteração, usar ela, senão usar Data_Processamento
+        date_column = 'Data Alteração' if 'Data Alteração' in critical_data.columns else 'Data_Processamento'
+        
+        # Agrupar por data
+        if date_column == 'Data Alteração':
+            critical_timeline = critical_data.groupby(
+                critical_data[date_column].dt.date
+            ).size().reset_index()
+            critical_timeline.columns = ['Data', 'Quantidade_Critica']
+        else:
+            critical_timeline = critical_data.groupby(date_column).size().reset_index()
+            critical_timeline.columns = ['Data', 'Quantidade_Critica']
+        
+        return critical_timeline
+    
+    def get_critical_summary(self, df):
+        """Cria resumo de itens críticos"""
+        critical_data = df[df['Nível de Cobertura'].str.contains('crítico|Crítico|CRÍTICO', na=False)]
+        
+        if len(critical_data) == 0:
+            return {
+                'total_critical': 0,
+                'critical_by_line': pd.DataFrame(),
+                'critical_by_area': pd.DataFrame()
+            }
+        
+        total_critical = len(critical_data)
+        
+        # Por linha ATO
+        critical_by_line = critical_data.groupby('Linha de ATO').size().reset_index()
+        critical_by_line.columns = ['Linha de ATO', 'Quantidade_Critica']
+        critical_by_line = critical_by_line.sort_values('Quantidade_Critica', ascending=False)
+        
+        # Por área
+        critical_by_area = critical_data.groupby('Área').size().reset_index()
+        critical_by_area.columns = ['Área', 'Quantidade_Critica']
+        critical_by_area = critical_by_area.sort_values('Quantidade_Critica', ascending=False)
+        
+        return {
+            'total_critical': total_critical,
+            'critical_by_line': critical_by_line,
+            'critical_by_area': critical_by_area
+        }
