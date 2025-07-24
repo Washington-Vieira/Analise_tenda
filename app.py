@@ -179,6 +179,19 @@ def main():
                                 fig_daily = visualizer.create_daily_analysis_chart(daily_data)
                                 st.plotly_chart(fig_daily, use_container_width=True)
                                 
+                                # Nova análise por dia do mês
+                                st.header("📅 Análise por Dia do Mês")
+                                
+                                daily_number_data = processor.analyze_daily_patterns_by_day_number(df_filtered)
+                                fig_daily_number = visualizer.create_daily_number_analysis_chart(daily_number_data)
+                                st.plotly_chart(fig_daily_number, use_container_width=True)
+                                
+                                # Mapa de calor combinado (Dia x Hora)
+                                st.header("🔥 Mapa de Calor: Dia vs Hora")
+                                
+                                fig_heatmap = visualizer.create_day_hour_heatmap(df_filtered)
+                                st.plotly_chart(fig_heatmap, use_container_width=True)
+                                
                                 # Tabela resumo por projeto
                                 st.header("📊 Resumo por Linha de Projeto")
                                 
@@ -247,10 +260,16 @@ def main():
             - **Linha ATO**: Linha de projeto (usado para agrupamento)
             - **Semiacabado**: Identificação do semiacabado
             - **Quantidade**: Valores numéricos para análise
-            - **Data Movimento**: Data e hora do movimento (formato: DD/MM/AAAA HH:MM)
+            - **Data Movimento**: Data e hora do movimento (formato: DD/MM/AAAA HH:MM:SS)
             - **Código Movimento**: Código do tipo de movimento
             - **Movimento**: Descrição do movimento
             - **Área**: Área responsável
+            
+            **Exemplo de formato da Data Movimento:** 21/07/2025 06:08:01
+            
+            O aplicativo extrairá automaticamente:
+            - **Dia:** 21 (dia do mês)
+            - **Hora:** 06 (hora arredondada)
             """)
         
         with st.expander("ℹ️ Como Usar"):

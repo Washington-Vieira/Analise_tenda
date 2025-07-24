@@ -40,14 +40,22 @@ class DataProcessor:
         try:
             df_processed = df.copy()
             
-            # Converter Data Movimento para datetime
+            # Converter Data Movimento para datetime - incluindo segundos
             df_processed['Data Movimento'] = pd.to_datetime(
                 df_processed['Data Movimento'], 
-                format='%d/%m/%Y %H:%M',
+                format='%d/%m/%Y %H:%M:%S',
                 errors='coerce'
             )
             
-            # Se não funcionou, tentar outros formatos
+            # Se não funcionou com segundos, tentar sem segundos
+            if df_processed['Data Movimento'].isna().all():
+                df_processed['Data Movimento'] = pd.to_datetime(
+                    df_processed['Data Movimento'], 
+                    format='%d/%m/%Y %H:%M',
+                    errors='coerce'
+                )
+            
+            # Se ainda não funcionou, tentar formato automático
             if df_processed['Data Movimento'].isna().all():
                 df_processed['Data Movimento'] = pd.to_datetime(
                     df_processed['Data Movimento'], 
@@ -68,9 +76,15 @@ class DataProcessor:
             df_processed = df_processed.dropna(subset=['Quantidade'])
             
             # Criar colunas auxiliares para análise temporal
-            df_processed['Hora'] = df_processed['Data Movimento'].dt.hour
+            df_processed['Dia'] = df_processed['Data Movimento'].dt.day  # Extrair o dia (1-31)
+            df_processed['Hora'] = df_processed['Data Movimento'].dt.hour  # Extrair a hora (0-23)
+            df_processed['Mes'] = df_processed['Data Movimento'].dt.month  # Extrair o mês
+            df_processed['Ano'] = df_processed['Data Movimento'].dt.year  # Extrair o ano
             df_processed['Dia_Semana'] = df_processed['Data Movimento'].dt.day_name()
             df_processed['Data'] = df_processed['Data Movimento'].dt.date
+            
+            # Criar uma chave combinada para agrupamentos mais específicos
+            df_processed['Dia_Hora'] = df_processed['Dia'].astype(str) + '_' + df_processed['Hora'].astype(str)
             
             # Ordenar por data
             df_processed = df_processed.sort_values('Data Movimento')
@@ -183,6 +197,31 @@ class DataProcessor:
         hourly_analysis.columns = ['Linha ATO', 'Hora', 'Total', 'Media', 'Contagem']
         
         return hourly_analysis
+    
+    def analyze_daily_patterns_by_day_number(self, df):
+        """Analisa padrões por dia do mês (1-31)"""
+        daily_analysis = df.groupby(['Linha ATO', 'Dia']).agg({
+            'Quantidade': ['sum', 'mean', 'count']
+        }).reset_index()
+        
+        # Flatten column names
+        daily_analysis.columns = ['Linha ATO', 'Dia', 'Total', 'Media', 'Contagem']
+        
+        return daily_analysis
+    
+    def analyze_day_hour_patterns(self, df):
+        """Analisa padrões combinando dia do mês e hora"""
+        day_hour_analysis = df.groupby(['Linha ATO', 'Dia', 'Hora']).agg({
+            'Quantidade': ['sum', 'mean', 'count']
+        }).reset_index()
+        
+        # Flatten column names
+        day_hour_analysis.columns = ['Linha ATO', 'Dia', 'Hora', 'Total', 'Media', 'Contagem']
+        
+        # Criar coluna combinada para visualização
+        day_hour_analysis['Dia_Hora'] = day_hour_analysis['Dia'].astype(str) + 'h' + day_hour_analysis['Hora'].astype(str).str.zfill(2)
+        
+        return day_hour_analysis
     
     def analyze_daily_patterns(self, df):
         """Analisa padrões por dia da semana"""

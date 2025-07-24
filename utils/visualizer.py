@@ -199,6 +199,81 @@ class Visualizer:
         
         return fig
     
+    def create_daily_number_analysis_chart(self, daily_data):
+        """Cria gráfico de análise por dia do mês (1-31)"""
+        fig = px.bar(
+            daily_data,
+            x='Dia',
+            y='Total',
+            color='Linha ATO',
+            title='📅 Distribuição de Quantidade por Dia do Mês',
+            labels={
+                'Dia': 'Dia do Mês',
+                'Total': 'Quantidade Total',
+                'Linha ATO': 'Linha de Projeto'
+            },
+            barmode='group'
+        )
+        
+        fig.update_layout(
+            height=500,
+            xaxis=dict(
+                tickmode='linear',
+                tick0=1,
+                dtick=1,
+                title='Dia do Mês (1-31)'
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
+        )
+        
+        return fig
+    
+    def create_day_hour_heatmap(self, df):
+        """Cria mapa de calor combinando dia do mês e hora"""
+        # Criar pivot table para heatmap
+        df_pivot = df.pivot_table(
+            values='Quantidade',
+            index='Hora',
+            columns='Dia',
+            aggfunc='sum',
+            fill_value=0
+        )
+        
+        fig = go.Figure(data=go.Heatmap(
+            z=df_pivot.values,
+            x=df_pivot.columns,
+            y=df_pivot.index,
+            colorscale='Viridis',
+            hoverongaps=False,
+            colorbar=dict(title="Quantidade"),
+            hovertemplate='Dia: %{x}<br>Hora: %{y}<br>Quantidade: %{z}<extra></extra>'
+        ))
+        
+        fig.update_layout(
+            title='🔥 Mapa de Calor: Quantidade por Dia do Mês e Hora',
+            xaxis_title='Dia do Mês',
+            yaxis_title='Hora do Dia',
+            height=500,
+            xaxis=dict(
+                tickmode='linear',
+                tick0=1,
+                dtick=1
+            ),
+            yaxis=dict(
+                tickmode='linear',
+                tick0=0,
+                dtick=1
+            )
+        )
+        
+        return fig
+    
     def create_heatmap_chart(self, df):
         """Cria mapa de calor para análise temporal"""
         # Criar pivot table para heatmap
