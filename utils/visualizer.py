@@ -340,26 +340,66 @@ class Visualizer:
             y='Total',
             color='Tipo_Movimento',
             facet_col='Linha ATO',
-            facet_col_wrap=2,
-            title='🕐 Distribuição por Hora: Entrada vs Saída',
+            facet_col_wrap=2,  # Dois gráficos por linha
+            title=None,  # Remove o título do gráfico
             labels={
-                'Hora': 'Hora do Dia',
-                'Total': 'Quantidade Total',
+                'Hora': '',  # Remove a legenda do eixo X
+                'Total': '',  # Remove a legenda do eixo Y
                 'Tipo_Movimento': 'Tipo'
             },
             barmode='group',
-            color_discrete_map={'Entrada': 'green', 'Saída': 'red'}
+            color_discrete_map={'Entrada': 'green', 'Saída': 'red'},
+            height=500,  # Altura fixa para todos os gráficos
+            custom_data=['Hora', 'Total', 'Tipo_Movimento']  # Dados para o tooltip
         )
         
+        # Atualizar layout
         fig.update_layout(
-            height=600,
-            xaxis=dict(
-                tickmode='linear',
-                tick0=0,
-                dtick=1,
-                title='Hora do Dia (0-23)'
-            )
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
+            bargap=0.3,         # Espaço entre grupos de barras
+            bargroupgap=0.1,    # Espaço entre barras do mesmo grupo
+            margin=dict(t=50, b=50, l=50, r=50),  # Margens consistentes
+            paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+            plot_bgcolor='rgba(0,0,0,0)'    # Fundo do plot transparente
         )
+        
+        # Atualizar todos os subplots para mostrar todas as horas
+        fig.update_xaxes(
+            tickmode='array',
+            ticktext=[f'{h}h' for h in range(24)],  # Adiciona 'h' após cada número
+            tickvals=list(range(24)),
+            dtick=1,
+            showgrid=False,  # Remove as linhas de grade verticais
+            title=None  # Remove o título do eixo X
+        )
+        
+        # Atualizar eixo Y
+        fig.update_yaxes(
+            title='',  # Remove o título do eixo Y
+            showgrid=True,  # Mostra as linhas de grade horizontais
+            gridwidth=1,    # Largura das linhas de grade
+            gridcolor='rgba(128, 128, 128, 0.2)',  # Cor suave para a grade
+            zeroline=False  # Remove a linha do zero
+        )
+        
+        # Configurar o tooltip personalizado
+        fig.update_traces(
+            hovertemplate="<b>Horário:</b> %{customdata[0]:02d}:00<br>" +
+                         "<b>%{customdata[2]}:</b> %{customdata[1]:,.0f}<br>" +
+                         "<extra></extra>"
+        )
+        
+        # Simplificar os títulos dos subplots
+        for annotation in fig.layout.annotations:
+            if 'Linha ATO=' in annotation.text:
+                annotation.text = annotation.text.replace('Linha ATO=', '')
         
         return fig
     
@@ -372,25 +412,56 @@ class Visualizer:
             color='Tipo_Movimento',
             facet_col='Linha ATO',
             facet_col_wrap=2,
-            title='📅 Distribuição por Dia do Mês: Entrada vs Saída',
+            title=None,  # Remove o título do gráfico
             labels={
-                'Dia': 'Dia do Mês',
-                'Total': 'Quantidade Total',
+                'Dia': '',  # Remove a legenda do eixo X
+                'Total': '',  # Remove a legenda do eixo Y
                 'Tipo_Movimento': 'Tipo'
             },
             barmode='group',
-            color_discrete_map={'Entrada': 'green', 'Saída': 'red'}
+            color_discrete_map={'Entrada': 'green', 'Saída': 'red'},
+            height=500  # Mesma altura do gráfico de horas
         )
         
+        # Atualizar layout
         fig.update_layout(
-            height=600,
-            xaxis=dict(
-                tickmode='linear',
-                tick0=1,
-                dtick=1,
-                title='Dia do Mês (1-31)'
-            )
+            showlegend=True,
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            ),
+            bargap=0.3,         # Mesmo espaçamento do gráfico de horas
+            bargroupgap=0.1,    # Mesmo espaçamento do gráfico de horas
+            margin=dict(t=50, b=50, l=50, r=50),  # Mesmas margens
+            paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+            plot_bgcolor='rgba(0,0,0,0)'    # Fundo do plot transparente
         )
+        
+        # Atualizar eixo X
+        fig.update_xaxes(
+            tickmode='linear',
+            tick0=1,
+            dtick=1,
+            showgrid=False,  # Remove as linhas de grade verticais
+            title=None  # Remove o título do eixo X
+        )
+        
+        # Atualizar eixo Y
+        fig.update_yaxes(
+            title='',  # Remove o título do eixo Y
+            showgrid=True,  # Mostra as linhas de grade horizontais
+            gridwidth=1,    # Largura das linhas de grade
+            gridcolor='rgba(128, 128, 128, 0.2)',  # Cor suave para a grade
+            zeroline=False  # Remove a linha do zero
+        )
+        
+        # Simplificar os títulos dos subplots
+        for annotation in fig.layout.annotations:
+            if 'Linha ATO=' in annotation.text:
+                annotation.text = annotation.text.replace('Linha ATO=', '')
         
         return fig
     
@@ -478,26 +549,29 @@ class Visualizer:
     
     def create_cobertura_pie_chart(self, cobertura_data):
         """Cria gráfico de pizza para níveis de cobertura"""
-        # Criar cores personalizadas - vermelho apenas para crítico
+        # Criar cores personalizadas para cada nível
         colors = []
-        color_palette = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#8B5A3C', '#6A994E', '#264653']
-        color_index = 0
         
         for nivel in cobertura_data['Nível de Cobertura']:
             nivel_str = str(nivel).lower()
             if any(word in nivel_str for word in ['crítico', 'critico', 'critical']):
-                colors.append('#FF0000')  # Vermelho apenas para crítico
+                colors.append('#FF0000')  # Vermelho para crítico
             elif 'baixo' in nivel_str:
                 colors.append('#FFA500')  # Laranja para baixo
+            elif 'excedente' in nivel_str:
+                colors.append('#0000FF')  # Azul para excedente
+            elif 'moderado' in nivel_str:
+                colors.append('#FFFF00')  # Amarelo para moderado
+            elif 'adequado' in nivel_str:
+                colors.append('#008000')  # Verde para adequado
             else:
-                colors.append(color_palette[color_index % len(color_palette)])
-                color_index += 1
+                colors.append('#808080')  # Cinza para outros casos
         
         fig = px.pie(
             cobertura_data,
             values='Quantidade',
             names='Nível de Cobertura',
-            title='🥧 Distribuição dos Níveis de Cobertura',
+            title=None,  # Remove o título do gráfico
             hover_data=['Percentual'],
             color_discrete_sequence=colors
         )
@@ -517,7 +591,10 @@ class Visualizer:
                 y=0.5,
                 xanchor="left",
                 x=1.01
-            )
+            ),
+            margin=dict(t=50, b=50, l=50, r=50),  # Margens consistentes
+            paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+            plot_bgcolor='rgba(0,0,0,0)'    # Fundo do plot transparente
         )
         
         return fig
@@ -534,33 +611,86 @@ class Visualizer:
                 font=dict(size=16, color="gray")
             )
             fig.update_layout(
-                title="📈 Evolução de Itens Críticos ao Longo do Tempo",
-                height=400
+                height=400,
+                margin=dict(t=50, b=50, l=50, r=50),  # Margens consistentes
+                paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+                plot_bgcolor='rgba(0,0,0,0)'    # Fundo do plot transparente
             )
             return fig
-        
-        fig = px.line(
-            critical_timeline,
-            x='Data',
-            y='Quantidade_Critica',
-            title='📈 Evolução de Itens Críticos ao Longo do Tempo',
-            labels={
-                'Data': 'Data',
-                'Quantidade_Critica': 'Quantidade de Itens Críticos'
-            },
-            markers=True
+
+        # Garantir que a coluna 'Data' contenha apenas datas (sem horário)
+        critical_timeline['Data'] = pd.to_datetime(critical_timeline['Data']).dt.date
+
+        # Criar figura com dois y-axis
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Adicionar linha de percentual
+        fig.add_trace(
+            go.Scatter(
+                x=critical_timeline['Data'],
+                y=critical_timeline['Percentual'],
+                name="Percentual Crítico",
+                line=dict(color='#FF0000', width=3),  # Vermelho para crítico
+                mode='lines+markers',
+                marker=dict(size=8, color='#FF0000'),  # Vermelho para crítico
+                hovertemplate="<b>%{x}</b><br>Percentual: %{y:.2f}%<extra></extra>"
+            ),
+            secondary_y=True
         )
-        
-        fig.update_traces(
-            line=dict(color='red', width=3),
-            marker=dict(size=8, color='darkred')
+
+        # Adicionar linha de quantidade
+        fig.add_trace(
+            go.Scatter(
+                x=critical_timeline['Data'],
+                y=critical_timeline['Items_Criticos'],
+                name="Quantidade Crítica",
+                line=dict(color='#FFA500', width=3, dash='dot'),  # Laranja para quantidade
+                mode='lines+markers',
+                marker=dict(size=8, color='#FFA500'),  # Laranja para quantidade
+                hovertemplate="<b>%{x}</b><br>Itens: %{y}<extra></extra>"
+            ),
+            secondary_y=False
         )
-        
+
+        # Atualizar layout
         fig.update_layout(
             height=400,
-            hovermode='x unified'
+            hovermode='x unified',
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5
+            ),
+            margin=dict(t=50, b=50, l=50, r=50),  # Margens consistentes
+            paper_bgcolor='rgba(0,0,0,0)',  # Fundo transparente
+            plot_bgcolor='rgba(0,0,0,0)'    # Fundo do plot transparente
         )
-        
+
+        # Atualizar eixos
+        fig.update_xaxes(
+            title=None,  # Remove o título do eixo X
+            tickformat="%d %b",
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128, 128, 128, 0.2)'
+        )
+        fig.update_yaxes(
+            title=None,  # Remove o título do eixo Y
+            secondary_y=False,
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128, 128, 128, 0.2)'
+        )
+        fig.update_yaxes(
+            title=None,  # Remove o título do eixo Y
+            secondary_y=True,
+            showgrid=True,
+            gridwidth=1,
+            gridcolor='rgba(128, 128, 128, 0.2)'
+        )
+
         return fig
     
     def create_critical_by_line_chart(self, critical_by_line):
@@ -588,10 +718,11 @@ class Visualizer:
             labels={
                 'Quantidade_Critica': 'Quantidade de Itens Críticos',
                 'Linha de ATO': 'Linha de Projeto'
-            },
-            color='Quantidade_Critica',
-            color_continuous_scale='Reds'
+            }
         )
+        
+        # Atualizar cor das barras para vermelho (crítico)
+        fig.update_traces(marker_color='#FF0000')
         
         fig.update_layout(
             height=500,

@@ -1,0 +1,101 @@
+# Arquivos de configuração sensíveis
+.streamlit/secrets.toml
+*.env
+.env
+
+# Arquivos de dados locais
+
+# Arquivos temporários
+temp_history.xlsx
+*.tmp
+*.temp
+
+# Arquivos do Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Ambientes virtuais
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Arquivos de backup
+*.bak
+*.backup
+*.old
+
+# Arquivos de cache
+.cache/
+.pytest_cache/
+
+# Arquivos de configuração local
+config.local.py
+settings.local.py
+
+# Arquivos de dados de teste
+test_data/
+sample_data/
+
+# Arquivos de output
+output/
+results/
+exports/
+
+# Arquivos de documentação temporários
+*.md~
+*.txt~
+
+# Arquivos de imagem temporários
+*.png~
+*.jpg~
+*.jpeg~
+
+# Arquivos de configuração do Streamlit (exceto secrets.toml que já está acima)
+.streamlit/config.toml
+
+# Arquivos de lock de dependências
+Pipfile.lock
+poetry.lock 

@@ -2,13 +2,94 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta, date
 import streamlit as st
+import os
 from scipy.signal import find_peaks
 import warnings
+import requests
+from github import Github
+from base64 import b64encode, b64decode
+import json
+from io import BytesIO
+
+class GitHubManager:
+    def __init__(self, token=None, repo_name=None):
+        """
+        Inicializa o gerenciador do GitHub
+        :param token: Token de acesso do GitHub
+        :param repo_name: Nome do repositório no formato 'usuario/repositorio'
+        """
+        self.token = token or st.secrets.get("GITHUB_TOKEN")
+        self.repo_name = repo_name or st.secrets.get("GITHUB_REPO")
+        self._github = None
+        self._repo = None
+    
+    @property
+    def github(self):
+        if not self._github:
+            if not self.token:
+                raise ValueError("GitHub token não configurado. Configure em .streamlit/secrets.toml")
+            self._github = Github(self.token)
+        return self._github
+    
+    @property
+    def repo(self):
+        if not self._repo:
+            if not self.repo_name:
+                raise ValueError("Nome do repositório não configurado. Configure em .streamlit/secrets.toml")
+            self._repo = self.github.get_repo(self.repo_name)
+        return self._repo
+    
+    def save_file(self, file_path, content, commit_message):
+        """
+        Salva ou atualiza um arquivo no GitHub
+        :param file_path: Caminho do arquivo no repositório
+        :param content: Conteúdo do arquivo
+        :param commit_message: Mensagem do commit
+        """
+        try:
+            # Verificar se o arquivo já existe
+            try:
+                file = self.repo.get_contents(file_path)
+                # Atualizar arquivo existente
+                self.repo.update_file(
+                    file.path,
+                    commit_message,
+                    content,
+                    file.sha
+                )
+                st.success(f"✅ Arquivo {file_path} atualizado no GitHub com sucesso!")
+            except:
+                # Criar novo arquivo
+                self.repo.create_file(
+                    file_path,
+                    commit_message,
+                    content
+                )
+                st.success(f"✅ Arquivo {file_path} criado no GitHub com sucesso!")
+        except Exception as e:
+            st.error(f"❌ Erro ao salvar arquivo no GitHub: {str(e)}")
+    
+    def load_file(self, file_path):
+        """
+        Carrega um arquivo do GitHub
+        :param file_path: Caminho do arquivo no repositório
+        :return: Conteúdo do arquivo
+        """
+        try:
+            file = self.repo.get_contents(file_path)
+            content = b64decode(file.content).decode('utf-8')
+            return content
+        except Exception as e:
+            st.warning(f"⚠️ Arquivo {file_path} não encontrado no GitHub: {str(e)}")
+            return None
+
 warnings.filterwarnings('ignore')
 
 class DataProcessor:
     def __init__(self):
         self.df = None
+        self.history_file = "historico_criticos.xlsx"
+        self.github = GitHubManager()
     
     def load_excel_file(self, uploaded_file):
         """Carrega arquivo Excel e retorna DataFrame"""
@@ -118,13 +199,29 @@ class DataProcessor:
         
         # Filtro por linha de projeto
         df_filtered = df_filtered[df_filtered['Linha ATO'].isin(selected_projects)]
-        
-        # Filtro por período
-        df_filtered = df_filtered[
-            (df_filtered['Data Movimento'].dt.date >= start_date) &
-            (df_filtered['Data Movimento'].dt.date <= end_date)
-        ]
-        
+
+        # Detectar qual coluna de data usar
+        date_col = None
+        if 'Data Movimento' in df_filtered.columns:
+            date_col = 'Data Movimento'
+        elif 'Data_Processamento' in df_filtered.columns:
+            date_col = 'Data_Processamento'
+        else:
+            st.error("Nenhuma coluna de data encontrada para filtrar.")
+            return df_filtered
+
+        # Converter start_date e end_date para datetime.date se forem Timestamp
+        if hasattr(start_date, 'date'):
+            start_date = start_date.date()
+        if hasattr(end_date, 'date'):
+            end_date = end_date.date()
+
+        # Converter coluna de data para datetime.date se necessário
+        col_data = pd.to_datetime(df_filtered[date_col])
+        col_data_date = col_data.dt.date if hasattr(col_data.dt, 'date') else col_data
+        mask = (col_data_date >= start_date) & (col_data_date <= end_date)
+        df_filtered = df_filtered[mask]
+
         return df_filtered
     
     def detect_peaks_by_project(self, df):
@@ -239,18 +336,27 @@ class DataProcessor:
     
     def analyze_daily_patterns_by_day_number_with_type(self, df):
         """Analisa padrões por dia do mês com tipo de movimento"""
-        daily_analysis = df.groupby(['Linha ATO', 'Dia', 'Tipo_Movimento']).agg({
-            'Quantidade': ['sum', 'mean', 'count']
-        }).reset_index()
-        
-        # Flatten column names
-        daily_analysis.columns = ['Linha ATO', 'Dia', 'Tipo_Movimento', 'Total', 'Media', 'Contagem']
-        
-        # Tornar valores de saída positivos para visualização
-        daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'] = \
-            abs(daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'])
-        
-        return daily_analysis
+        try:
+            # Garantir que temos a coluna Dia
+            if 'Dia' not in df.columns:
+                df = df.copy()
+                df['Dia'] = df['Data Movimento'].dt.day
+            
+            daily_analysis = df.groupby(['Linha ATO', 'Dia', 'Tipo_Movimento']).agg({
+                'Quantidade': ['sum', 'mean', 'count']
+            }).reset_index()
+            
+            # Flatten column names
+            daily_analysis.columns = ['Linha ATO', 'Dia', 'Tipo_Movimento', 'Total', 'Media', 'Contagem']
+            
+            # Tornar valores de saída positivos para visualização
+            daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'] = \
+                abs(daily_analysis.loc[daily_analysis['Tipo_Movimento'] == 'Saída', 'Total'])
+            
+            return daily_analysis
+        except Exception as e:
+            st.error(f"Erro ao processar análise diária: {str(e)}")
+            return pd.DataFrame()
     
     def analyze_daily_patterns(self, df):
         """Analisa padrões por dia da semana"""
@@ -308,11 +414,8 @@ class DataProcessor:
         try:
             df_processed = df.copy()
             
-            # Adicionar data atual para cada registro
-            df_processed['Data_Processamento'] = date.today()
-            
-            # Debug - mostrar colunas disponíveis
-            st.info(f"📋 Colunas encontradas no arquivo: {', '.join(df_processed.columns.tolist())}")
+            # Adicionar data atual para cada registro como Timestamp
+            df_processed['Data_Processamento'] = pd.Timestamp(date.today())
             
             # Converter Data Alteração se existir (diferentes possibilidades de nome)
             date_columns = ['Data Alteração', 'Data_Alteracao', 'Data Alteracao', 
@@ -364,77 +467,143 @@ class DataProcessor:
         
         return cobertura_counts
     
+    def save_critical_history(self, total_items, total_critical):
+        """
+        Salva o histórico de itens críticos em uma planilha local e no GitHub
+        """
+        today = pd.Timestamp(date.today())
+        percentage = (total_critical / total_items * 100) if total_items > 0 else 0
+
+        # Tentar carregar histórico existente do GitHub
+        try:
+            content = self.github.load_file(self.history_file)
+            if content:
+                # Salvar conteúdo em arquivo temporário
+                with open("temp_history.xlsx", "wb") as f:
+                    f.write(b64decode(content))
+                df_history = pd.read_excel("temp_history.xlsx")
+                os.remove("temp_history.xlsx")  # Limpar arquivo temporário
+            else:
+                df_history = pd.DataFrame(columns=['Data', 'Percentual', 'Total_Items', 'Items_Criticos'])
+        except:
+            # Se falhar, tentar carregar arquivo local
+            if os.path.exists(self.history_file):
+                df_history = pd.read_excel(self.history_file)
+            else:
+                df_history = pd.DataFrame(columns=['Data', 'Percentual', 'Total_Items', 'Items_Criticos'])
+
+        # Converter coluna de data para datetime
+        if not df_history.empty:
+            df_history['Data'] = pd.to_datetime(df_history['Data'])
+
+        # Verificar se já existe entrada para hoje
+        if not df_history.empty:
+            # Comparar apenas as datas (ignorando o horário)
+            if (df_history['Data'].dt.date == today.date()).any():
+                # Atualizar entrada existente
+                mask = df_history['Data'].dt.date == today.date()
+                df_history.loc[mask, 'Percentual'] = percentage
+                df_history.loc[mask, 'Total_Items'] = total_items
+                df_history.loc[mask, 'Items_Criticos'] = total_critical
+            else:
+                # Adicionar nova entrada
+                new_row = pd.DataFrame({
+                    'Data': [today],
+                    'Percentual': [percentage],
+                    'Total_Items': [total_items],
+                    'Items_Criticos': [total_critical]
+                })
+                df_history = pd.concat([df_history, new_row], ignore_index=True)
+        else:
+            # Adicionar primeira entrada
+            df_history = pd.DataFrame({
+                'Data': [today],
+                'Percentual': [percentage],
+                'Total_Items': [total_items],
+                'Items_Criticos': [total_critical]
+            })
+
+        # Ordenar por data
+        df_history = df_history.sort_values('Data')
+
+        # Salvar localmente
+        df_history.to_excel(self.history_file, index=False)
+
+        # Salvar no GitHub
+        try:
+            # Criar arquivo em memória
+            output = BytesIO()
+            df_history.to_excel(output, index=False)
+            content = output.getvalue()
+            
+            # Salvar no GitHub
+            self.github.save_file(
+                self.history_file,
+                content,
+                f"Atualização do histórico de itens críticos - {today.strftime('%d/%m/%Y')}"
+            )
+        except Exception as e:
+            st.warning(f"⚠️ Não foi possível salvar no GitHub: {str(e)}")
+            st.info("💡 O arquivo foi salvo apenas localmente.")
+
+        return df_history
+
     def analyze_critical_items_over_time(self, df):
         """Analisa itens críticos ao longo do tempo com histórico"""
         try:
-            # Buscar padrões de criticidade na coluna de nível de cobertura
-            critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
-                               'critical', 'Critical', 'CRITICAL', 'baixo', 'Baixo', 'BAIXO']
-            
-            # Criar máscara para encontrar itens críticos
+            # Carregar histórico
+            if os.path.exists(self.history_file):
+                historical_data = pd.read_excel(self.history_file)
+                if not historical_data.empty:
+                    # Garantir que a coluna Data seja datetime
+                    historical_data['Data'] = pd.to_datetime(historical_data['Data'])
+                    return historical_data
+
+            # Se não houver histórico, criar com dados atuais
+            critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO']
+
+            # Criar máscara para encontrar itens críticos (excluir BAIXO)
             critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
                 '|'.join(critical_patterns), 
                 case=False, 
                 na=False
-            )
-            
+            ) & ~df['Nível de Cobertura'].str.contains('baixo', case=False, na=False)
+
             critical_data = df[critical_mask]
-            
-            if len(critical_data) == 0:
-                return pd.DataFrame()
-            
-            # Usar sempre a data de processamento para comparação histórica
-            current_date = df['Data_Processamento'].iloc[0]
+            total_items = len(df)
             total_critical = len(critical_data)
-            
-            # Criar timeline baseado na data atual
-            critical_timeline = pd.DataFrame({
-                'Data': [current_date],
-                'Quantidade_Critica': [total_critical],
-                'Data_Formatada': [current_date.strftime('%d/%m/%Y')]
-            })
-            
-            # Tentar carregar histórico anterior (simulado - em produção seria um banco de dados)
-            try:
-                # Simular dados históricos para demonstração
-                historical_dates = pd.date_range(
-                    start=current_date - pd.Timedelta(days=30),
-                    end=current_date - pd.Timedelta(days=1),
-                    freq='D'
-                )
-                
-                # Simular variação de itens críticos ao longo do tempo
-                import random
-                historical_data = []
-                base_critical = max(1, total_critical - random.randint(0, 10))
-                
-                for date in historical_dates[-7:]:  # Últimos 7 dias
-                    variation = random.randint(-5, 5)
-                    critical_count = max(0, base_critical + variation)
-                    historical_data.append({
-                        'Data': date.date(),
-                        'Quantidade_Critica': critical_count,
-                        'Data_Formatada': date.strftime('%d/%m/%Y')
-                    })
-                
-                historical_df = pd.DataFrame(historical_data)
-                critical_timeline = pd.concat([historical_df, critical_timeline], ignore_index=True)
-                
-            except:
-                pass  # Se não conseguir simular, usar apenas dados atuais
-            
-            return critical_timeline.sort_values('Data')
-        
+
+            # Salvar no histórico
+            return self.save_critical_history(total_items, total_critical)
+
         except Exception as e:
-            st.error(f"Erro na análise temporal de críticos: {str(e)}")
+            st.error(f"Erro ao analisar itens críticos: {str(e)}")
             return pd.DataFrame()
     
     def get_critical_summary(self, df):
+        """
+        Calcula e salva o sumário de itens críticos.
+        """
+        critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
+                           'critical', 'Critical', 'CRITICAL']
+        
+        # Criar máscara para encontrar itens críticos
+        critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
+            '|'.join(critical_patterns), 
+            case=False, 
+            na=False
+        )
+        
+        total_critical = len(df[critical_mask])
+        total_items = len(df)
+        
+        # Salvar no histórico
+        self.save_critical_history(total_items, total_critical)
         """Cria resumo de itens críticos"""
         try:
             # Usar os mesmos padrões da função anterior
             critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
-                               'critical', 'Critical', 'CRITICAL', 'baixo', 'Baixo', 'BAIXO']
+                               'critical', 'Critical', 'CRITICAL']
             
             critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
                 '|'.join(critical_patterns), 
@@ -496,3 +665,50 @@ class DataProcessor:
                 'critical_by_line': pd.DataFrame(),
                 'critical_by_area': pd.DataFrame()
             }
+
+    def get_critical_materials_by_line(self, df):
+        """Obtém os materiais críticos agrupados por linha ATO"""
+        try:
+            critical_patterns = ['crítico', 'critico', 'Crítico', 'Critico', 'CRÍTICO', 'CRITICO', 
+                               'critical', 'Critical', 'CRITICAL']
+            
+            # Criar máscara para encontrar itens críticos
+            critical_mask = df['Nível de Cobertura'].astype(str).str.contains(
+                '|'.join(critical_patterns), 
+                case=False, 
+                na=False
+            )
+            
+            # Filtrar apenas itens críticos
+            critical_data = df[critical_mask].copy()
+            
+            # Verificar se temos as colunas necessárias
+            line_columns = ['Linha de ATO', 'Linha ATO', 'Linha_ATO', 'Projeto', 'Line']
+            line_column = None
+            for col in line_columns:
+                if col in critical_data.columns:
+                    line_column = col
+                    break
+            
+            if not line_column or 'Material' not in critical_data.columns:
+                return {}
+            
+            # Agrupar materiais críticos por linha
+            critical_materials = {}
+            for linha in critical_data[line_column].unique():
+                linha_data = critical_data[critical_data[line_column] == linha]
+                materiais = linha_data[['Material', 'Nível de Cobertura', 'Balance', 'Necessidade']].copy()
+                
+                # Calcular cobertura percentual
+                materiais['Cobertura %'] = (materiais['Balance'] / materiais['Necessidade'] * 100).round(2)
+                
+                # Ordenar por nível de cobertura e material
+                materiais = materiais.sort_values(['Nível de Cobertura', 'Material'])
+                
+                critical_materials[linha] = materiais.to_dict('records')
+            
+            return critical_materials
+        
+        except Exception as e:
+            st.error(f"Erro ao processar materiais críticos: {str(e)}")
+            return {}

@@ -18,8 +18,8 @@ st.set_page_config(
 )
 
 def main():
-    st.title("📊 Análise Temporal de Arquivos Excel")
-    st.markdown("### Análise de Picos de Entrada/Saída por Linha de Projeto")
+    #st.title("📊 Análise Temporal de Arquivos Excel")
+    #st.markdown("### Análise de Picos de Entrada/Saída por Linha de Projeto")
     
     # Sidebar para upload e configurações
     with st.sidebar:
@@ -77,6 +77,9 @@ def main():
                 df_cobertura = processor.load_excel_file(cobertura_file)
                 
                 if df_cobertura is not None:
+                    # Salvar o DataFrame de cobertura na sessão
+                    st.session_state.df_cobertura = df_cobertura
+                    
                     # Validar colunas para cobertura (mais flexível)
                     validation_result = processor.validate_cobertura_columns(df_cobertura)
                     
@@ -90,23 +93,33 @@ def main():
                         df_cobertura_processed = processor.process_cobertura_data(df_cobertura)
                         
                         if df_cobertura_processed is not None:
+                            # Análise de itens críticos
+                            critical_summary = processor.get_critical_summary(df_cobertura_processed)
+
                             # Estatísticas de cobertura
-                            col1, col2, col3 = st.columns(3)
-                            
+                            col1, col2, col3, col4, col5 = st.columns(5)
+
                             with col1:
                                 total_items = len(df_cobertura_processed)
                                 st.metric("Total de Itens", f"{total_items:,}")
-                            
+
                             with col2:
                                 unique_materials = df_cobertura_processed['Material'].nunique()
                                 st.metric("Materiais Únicos", unique_materials)
-                            
+
                             with col3:
                                 current_date = df_cobertura_processed['Data_Processamento'].iloc[0]
                                 st.metric("Data de Processamento", current_date.strftime('%d/%m/%Y'))
+
+                            with col4:
+                                st.metric("Total de Itens Críticos", critical_summary['total_critical'])
+
+                            with col5:
+                                critical_percentage = (critical_summary['total_critical'] / total_items * 100)
+                                st.metric("Percentual Crítico", f"{critical_percentage:.1f}%")
                             
                             # Análise dos níveis de cobertura
-                            st.subheader("🥧 Distribuição dos Níveis de Cobertura")
+                            #st.subheader("🥧 Distribuição dos Níveis de Cobertura")
                             
                             cobertura_counts = processor.analyze_cobertura_levels(df_cobertura_processed)
                             fig_pie = visualizer.create_cobertura_pie_chart(cobertura_counts)
@@ -125,25 +138,21 @@ def main():
                             
                             # Análise de itens críticos
                             critical_summary = processor.get_critical_summary(df_cobertura_processed)
-                            
+
                             if critical_summary['total_critical'] > 0:
                                 # Apenas mostrar evolução temporal melhorada
-                                st.subheader("📈 Evolução de Itens Críticos ao Longo do Tempo")
-                                
+                                #st.subheader("📈 Evolução de Itens Críticos ao Longo do Tempo")
+
                                 critical_timeline = processor.analyze_critical_items_over_time(df_cobertura_processed)
                                 fig_critical_timeline = visualizer.create_critical_timeline_chart(critical_timeline)
                                 st.plotly_chart(fig_critical_timeline, use_container_width=True)
-                                
-                                # Mostrar apenas um resumo simples
-                                col1, col2 = st.columns(2)
-                                with col1:
-                                    st.metric("Total de Itens Críticos", critical_summary['total_critical'])
-                                with col2:
-                                    critical_percentage = (critical_summary['total_critical'] / total_items * 100)
-                                    st.metric("Percentual Crítico", f"{critical_percentage:.1f}%")
-                            
-                            else:
-                                st.success("✅ Nenhum item crítico encontrado!")
+
+                                # Exibir linhas ATO correspondentes aos itens críticos
+                                if not critical_summary['critical_by_line'].empty:
+                                    st.subheader("🔍 Linhas ATO com Itens Críticos")
+                                    st.dataframe(critical_summary['critical_by_line'], use_container_width=True)
+                                else:
+                                    st.info("Nenhuma linha ATO crítica encontrada.")
                         
                         else:
                             st.error("❌ Erro ao processar dados de cobertura.")
@@ -169,6 +178,14 @@ def main():
                 df_saida = processor.load_excel_file(saida_file)
                 
                 if df_entrada is not None and df_saida is not None:
+                    # Converter a coluna de data para datetime
+                    df_entrada['Data Movimento'] = pd.to_datetime(df_entrada['Data Movimento'])
+                    df_saida['Data Movimento'] = pd.to_datetime(df_saida['Data Movimento'])
+                    
+                    # Salvar os DataFrames na sessão
+                    st.session_state.df_entrada = df_entrada
+                    st.session_state.df_saida = df_saida
+                    
                     # Validar colunas obrigatórias para ambos os arquivos
                     required_columns = [
                         'Linha MAE', 'Linha ATO', 'Semiacabado', 'Quantidade',
@@ -269,14 +286,14 @@ def main():
                             if len(df_filtered) > 0:
                                 
                                 # Análise por hora com entrada/saída
-                                st.header("🕐 Análise por Hora do Dia")
+                                #st.header("🕐 Análise por Hora do Dia")
                                 
                                 hourly_data = processor.analyze_hourly_patterns_with_type(df_filtered)
                                 fig_hourly = visualizer.create_hourly_entrada_saida_chart(hourly_data)
                                 st.plotly_chart(fig_hourly, use_container_width=True)
                                 
                                 # Análise por dia do mês com entrada/saída (Simplificada)
-                                st.header("📅 Análise por Dia do Mês")
+                                #st.header("📅 Análise por Dia do Mês")
                                 
                                 daily_number_data = processor.analyze_daily_patterns_by_day_number_with_type(df_filtered)
                                 fig_daily_number = visualizer.create_daily_number_entrada_saida_chart(daily_number_data)
