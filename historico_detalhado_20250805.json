@@ -1,0 +1,22 @@
+{
+  "data": "2025-08-05",
+  "total_items": 4,
+  "total_criticos": 2,
+  "percentual": 50.0,
+  "itens_criticos": [
+    {
+      "material": "Material A",
+      "nivel": "Crítico",
+      "linha_ato": "Linha 1",
+      "balance": 100,
+      "necessidade": 150
+    },
+    {
+      "material": "Material C",
+      "nivel": "Crítico",
+      "linha_ato": "Linha 1",
+      "balance": 50,
+      "necessidade": 100
+    }
+  ]
+}
