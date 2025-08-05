@@ -1,22 +1,491 @@
 {
   "data": "2025-08-05",
-  "total_items": 4,
-  "total_criticos": 2,
-  "percentual": 50.0,
+  "total_items": 2582,
+  "total_criticos": 69,
+  "percentual": 2.672347017815647,
   "itens_criticos": [
     {
-      "material": "Material A",
-      "nivel": "Crítico",
-      "linha_ato": "Linha 1",
-      "balance": 100,
+      "material": "SA000009816",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006391",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -250
+    },
+    {
+      "material": "SC000006428",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -250
+    },
+    {
+      "material": "SC000007155",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -300
+    },
+    {
+      "material": "SC000007164",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -250
+    },
+    {
+      "material": "SC000007466",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -200
+    },
+    {
+      "material": "SC000007468",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -300
+    },
+    {
+      "material": "SC000007486",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -250
+    },
+    {
+      "material": "SC000032022",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000068958",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -300
+    },
+    {
+      "material": "SA000001128",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -100
+    },
+    {
+      "material": "SA000001296",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SA000001297",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006462",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006463",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006464",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006465",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006466",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
       "necessidade": 150
     },
     {
-      "material": "Material C",
-      "nivel": "Crítico",
-      "linha_ato": "Linha 1",
-      "balance": 50,
+      "material": "SC000006467",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 150
+    },
+    {
+      "material": "SC000006470",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
       "necessidade": 100
+    },
+    {
+      "material": "SC000007108",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000009223",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000009224",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SA000000870",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -450
+    },
+    {
+      "material": "SA000000902",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SA000005800",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 100
+    },
+    {
+      "material": "SC000006116",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SC000006216",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 150
+    },
+    {
+      "material": "SA000008034",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SA000009728",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SA000009738",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -400
+    },
+    {
+      "material": "SC000070560",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000072808",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000007334",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000007382",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000006229",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SC000039708",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 250
+    },
+    {
+      "material": "SC000071662",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SA000000682",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SA000004009",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SA000004010",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 275
+    },
+    {
+      "material": "SC000005241",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SC000007107",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000007117",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000007120",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 250
+    },
+    {
+      "material": "SC000013488",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SC000031033",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -100
+    },
+    {
+      "material": "SA000002388",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SA000002393",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 150
+    },
+    {
+      "material": "SA000002462",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -650
+    },
+    {
+      "material": "SA000004099",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SA000006648",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 300
+    },
+    {
+      "material": "SA000006649",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SA000007972",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SA000009788",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 100
+    },
+    {
+      "material": "SA000010155",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 100
+    },
+    {
+      "material": "SC000019434",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SA000010157",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 25
+    },
+    {
+      "material": "SC000032073",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000033156",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -150
+    },
+    {
+      "material": "SC000033159",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -150
+    },
+    {
+      "material": "SA000000739",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 50
+    },
+    {
+      "material": "SC000011812",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 200
+    },
+    {
+      "material": "SC000043385",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000043386",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000043387",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000045651",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": -50
+    },
+    {
+      "material": "SC000064039",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 0
+    },
+    {
+      "material": "SC000014647",
+      "nivel": "CRÍTICO",
+      "linha_ato": "N/A",
+      "balance": NaN,
+      "necessidade": 300
     }
   ]
 }
